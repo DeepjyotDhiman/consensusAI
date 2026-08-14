@@ -1,6 +1,10 @@
-# ConsensusAI
+# ConsensusAI — AI-powered Campus Collaboration & Consensus Platform
 
-AI-powered group consensus for hackathon teams. Multiple students enter their preferences, the system detects conflicts, scores candidate projects, and generates a transparent consensus recommendation — live across all connected browsers.
+> **Track**: Student AI  
+> **Use Case**: AI for Campus Life / Hyperlocal Innovation  
+> **Application**: AI-assisted student team formation, project selection, and collaborative decision-making.
+
+Students on campus frequently collaborate in teams but have different skills, interests, availability, budgets, and learning goals. ConsensusAI helps them reach an AI-assisted, transparent group decision instead of relying on informal discussion — evaluating Campus Decision Candidates and streaming real-time consensus live across all connected browsers.
 
 ## Prerequisites
 
