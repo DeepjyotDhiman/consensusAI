@@ -1,0 +1,21 @@
+{
+  "name": "consensusai",
+  "private": true,
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=8"
+  },
+  "packageManager": "pnpm@8.15.6",
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @consensus/server dev\" \"pnpm --filter @consensus/client dev\"",
+    "build": "pnpm --filter @consensus/shared build && pnpm --filter @consensus/server build && pnpm --filter @consensus/client build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @consensus/server test",
+    "seed": "pnpm --filter @consensus/server seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,1 @@
+{"version":3,"file":"ConsensusEngine.d.ts","sourceRoot":"","sources":["../../../../src/consensus/ConsensusEngine.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,cAAc,EAAE,eAAe,EAAE,MAAM,mBAAmB,CAAC;AAazE,MAAM,WAAW,eAAe;IAC9B,iBAAiB,CAAC,KAAK,EAAE,cAAc,GAAG,OAAO,CAAC,eAAe,CAAC,CAAC;CACpE;AAGD,YAAY,EAAE,cAAc,EAAE,eAAe,EAAE,CAAC"}
