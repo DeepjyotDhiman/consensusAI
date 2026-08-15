@@ -43,14 +43,22 @@ export interface Candidate {
 }
 
 export const groupApi = {
-  createGroup: (name: string) =>
+  createGroup: (name: string, userId?: string) =>
     request<{ group: Group; joinCode: string }>('/groups', {
       method: 'POST',
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, userId })
     }),
+
+  getUserGroups: (userId: string) =>
+    request<{ groups: Group[] }>(`/groups?userId=${userId}`),
 
   getGroup: (id: string) =>
     request<GroupWithMembers>(`/groups/${id}`),
+
+  deleteGroup: (id: string) =>
+    request<{ success: boolean; id: string }>(`/groups/${id}`, {
+      method: 'DELETE'
+    }),
 
   joinGroup: (joinCode: string, userId: string) =>
     request<JoinResult>('/groups/join', {

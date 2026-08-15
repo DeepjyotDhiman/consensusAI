@@ -1,5 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
+  username TEXT UNIQUE,
+  password_hash TEXT,
   display_name TEXT NOT NULL,
   avatar_color TEXT NOT NULL,
   created_at INTEGER NOT NULL
@@ -7,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS groups (
   id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id),
   join_code TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   created_at INTEGER NOT NULL

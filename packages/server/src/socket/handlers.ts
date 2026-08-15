@@ -14,7 +14,7 @@ import db from "../db/db.js";
 type IO = Server<ClientToServerEvents, ServerToClientEvents>;
 type Sock = Socket<ClientToServerEvents, ServerToClientEvents>;
 
-const useOllama = process.env["CONSENSUS_ENGINE"] === "ollama" || !process.env["CONSENSUS_ENGINE"];
+const useOllama = process.env["CONSENSUS_ENGINE"] === "ollama";
 const engine = useOllama ? new OllamaConsensusEngine() : new MockConsensusEngine();
 
 export function registerHandlers(io: IO): void {
@@ -155,7 +155,9 @@ function handlePreferenceUpdate(io: IO, socket: Sock) {
         .filter(
           ({ preference }) =>
             preference !== null &&
-            (preference.skills.length > 0 || preference.availabilityHours > 0)
+            ((Array.isArray(preference.skills) && preference.skills.length > 0) ||
+              (typeof preference.skills === "string" && (preference.skills as string).trim().length > 0) ||
+              preference.availabilityHours > 0)
         )
         .map(({ member, user, preference }) => ({
           userId: member.userId,
@@ -163,13 +165,19 @@ function handlePreferenceUpdate(io: IO, socket: Sock) {
           preferences: preference!,
         }));
 
+      console.log(`[Server Socket] Received preference:update for member: ${groupMemberId}, room: ${groupId}`);
+      console.log(`[Server Socket] Qualified members count: ${membersWithPrefs.length}`);
+
       // 5. Only run consensus if >= 2 members have preferences
       if (membersWithPrefs.length < 2) {
+        console.log("[Server Socket] Waiting for at least 2 members with preferences before generating consensus");
         return;
       }
 
       // 6. Run consensus engine
+      console.log(`[Server Socket] Generating consensus for room: ${groupId}...`);
       const result = await engine.generateConsensus({ members: membersWithPrefs });
+      console.log("[Server Socket] Generated & Emitting consensus:updated:", result.recommendation, `(Group Score: ${result.groupScore}%)`);
 
       // 7. Persist consensus result
       const resultId = crypto.randomUUID();

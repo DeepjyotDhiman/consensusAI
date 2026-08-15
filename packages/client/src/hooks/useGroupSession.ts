@@ -47,6 +47,7 @@ export function useGroupSession(groupId: string, userId: string) {
     });
 
     socket.on('consensus:updated', ({ result }) => {
+      console.log('Received Consensus:', result);
       store.setConsensusResult(result);
     });
 
@@ -63,9 +64,11 @@ export function useGroupSession(groupId: string, userId: string) {
 
   const updatePreference = useCallback((groupMemberId: string, preferences: Preference) => {
     if (socketRef.current?.connected) {
+      console.log('Sending Members:', store.members);
+      console.log('[Socket Emit] preference:update for member:', groupMemberId, preferences);
       socketRef.current.emit('preference:update', { groupMemberId, preferences });
     }
-  }, []);
+  }, [store.members]);
 
   return {
     group: store.group,
