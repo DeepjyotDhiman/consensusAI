@@ -48,7 +48,7 @@ export default function Landing() {
             Consensus<span className="text-indigo-400">AI</span>
           </span>
           <span className="ml-2 px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-indigo-950/80 border border-indigo-700/60 text-indigo-300">
-            Hackathon Edition
+            Campus Life & Student AI
           </span>
         </div>
 
@@ -57,7 +57,7 @@ export default function Landing() {
             onClick={() => setCatalogOpen(true)}
             className="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700/80 hover:bg-slate-800/80 transition-colors hidden sm:block"
           >
-            Explore Projects Catalog
+            Explore Decision Candidates
           </button>
           <Link
             to="/join"
@@ -78,17 +78,16 @@ export default function Landing() {
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-16 text-center max-w-5xl mx-auto z-10">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 text-xs mb-6 backdrop-blur-sm animate-pulse-subtle">
           <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-          <span>Real-time Multi-User Consensus Engine</span>
+          <span>AI-Powered Campus Collaboration & Consensus Platform</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
-          AI-Powered Group Consensus for <br />
-          <span className="text-gradient">Hackathon Teams</span>
+          AI-Assisted Group Decisions for <br />
+          <span className="text-gradient">Student Teams & Campus Life</span>
         </h1>
 
         <p className="text-slate-400 max-w-2xl text-base sm:text-lg mb-10 leading-relaxed">
-          Stop endless debate on what to build. Combine your team’s skills, budget, and time availability —
-          ConsensusAI scores candidates, highlights trade-offs, and recommends the winning project live across connected browsers.
+          Students on campus frequently collaborate in teams but have different skills, interests, availability, budgets, and learning goals. ConsensusAI helps them reach an AI-assisted, transparent group decision instead of relying on informal discussion.
         </p>
 
         {/* Action Buttons */}

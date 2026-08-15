@@ -1,28 +1,37 @@
 # ConsensusAI — Implementation Plan
 
-> **Revision 2** — Updated after architecture stress-test.
-> Key decisions: pnpm monorepo · auto-blur triggers recalculation · result as dashboard summary panel + full detail page · single write path through Socket.IO · candidates as TS constant · `useGroupSession` single hook · consensus score penalises outliers.
+> **Revision 3** — Final implementation completed with Campus Life & Student AI alignment.
+> **Positioning**: AI-powered Campus Collaboration & Consensus Platform.
+> **Hackathon Alignment**:
+> - **Track**: Student AI
+> - **Use Case**: AI for Campus Life / Hyperlocal Innovation
+> - **Application**: AI-assisted student team formation, project selection, and collaborative decision-making.
+> Key decisions: pnpm monorepo · auto-blur/change triggers recalculation · result as dashboard summary panel + full detail page · single write path through Socket.IO · Campus Decision Candidates architecture · `useGroupSession` single hook · consensus score penalises outliers · `OllamaConsensusEngine` with automatic fallback seam to `MockConsensusEngine` · custom member profile creation · Candidate Archetype Catalog modal · Cyber-glass design system & Markdown report export.
 
 ---
 
 ## Top-Level Overview
 
-Build a fully local, free-to-run hackathon MVP called **ConsensusAI** — an AI-powered student collaboration platform that collects structured preferences from multiple group members, detects conflicts, scores candidate projects against group preferences, and delivers a transparent consensus recommendation with trade-off explanations. Changes to any member's preferences trigger a real-time recalculation broadcast to all connected browsers.
+Build a fully local, free-to-run platform called **ConsensusAI** — an **AI-powered Campus Collaboration & Consensus Platform**.
 
-**Scope:** pnpm monorepo. Three packages: `packages/client` (React + Vite + Tailwind), `packages/server` (Node + Express + Socket.IO + SQLite), `packages/shared` (TypeScript types & contracts). A `ConsensusEngine` interface is the central seam — the mock implementation ships now; an LLM implementation is a one-file swap later.
+Students on campus frequently collaborate in teams but have different skills, interests, availability, budgets, and learning goals. ConsensusAI helps them reach an AI-assisted, transparent group decision instead of relying on informal discussion. While team project selection serves as the primary campus-life collaboration use case, the underlying architecture evaluates **Campus Decision Candidates** against multi-member preferences, detects conflicts, and delivers transparent consensus recommendations with trade-off explanations in real time across all connected browsers.
 
-**Non-goals for MVP:** Production auth, external APIs, paid AI services, deployment pipeline.
+**Scope:** pnpm monorepo. Three packages: `packages/client` (React + Vite + Tailwind), `packages/server` (Node + Express + Socket.IO + SQLite), `packages/shared` (TypeScript types & contracts). A `ConsensusEngine` interface is the central seam — implemented with `OllamaConsensusEngine` (queries local Ollama `llama3` at `http://localhost:11434/api/generate`) with automatic, graceful fallback to `MockConsensusEngine` if Ollama is not active.
+
+**Non-goals for MVP:** Production auth, external paid APIs, unrelated campus life utilities (no roommate matcher, no event discovery, no cafeteria recommender, no campus navigation — focusing purely on collaborative team decision-making).
 
 **Architecture decisions locked:**
 - pnpm workspaces (better symlink/hoisting on Windows; signals code quality to judges)
-- Preference form auto-saves on field **blur** → triggers consensus recalculation server-side
+- Preference form auto-saves on field **blur/change** → triggers consensus recalculation server-side
 - Consensus result shown as **summary panel** embedded in `/group/:id` dashboard AND as **full detail page** at `/group/:id/result`
 - All live mutations go through **Socket.IO only** — no dual REST/socket write path
-- Candidates are a **TypeScript constant file** — no DB table, no FK, no migration
-- `CandidateGenerator` and `RealtimeService` **eliminated** as named services
-- `useGroupSession` **single hook** replaces three separate hooks
+- Campus Decision Candidates stored as a **TypeScript constant file** + served via REST endpoint `GET /api/v1/candidates`
+- Custom member profile registration via `POST /api/v1/users`
+- Candidate Catalog Explorer modal (`CandidateCatalogModal.tsx`)
+- `useGroupSession` **single hook** owns socket connection, room join, and live store state
 - Consensus score = `mean(memberScores) − 0.5 × stddev(memberScores)` (penalises outlier dissatisfaction)
 - Conflicts embedded in `consensus:updated` payload — **no separate** `group:conflict_detected` event
+- Exportable Markdown Consensus Report for hackathon judge presentations
 
 ---
 
@@ -57,12 +66,15 @@ consensusAI/
 │   │   │   │   ├── ScoringEngine.ts
 │   │   │   │   └── ExplanationGenerator.ts
 │   │   │   ├── consensus/
-│   │   │   │   ├── ConsensusEngine.ts          ← interface only
-│   │   │   │   └── MockConsensusEngine.ts      ← implementation
+│   │   │   │   ├── ConsensusEngine.ts          ← interface
+│   │   │   │   ├── MockConsensusEngine.ts      ← deterministic algorithm
+│   │   │   │   └── OllamaConsensusEngine.ts    ← LLM engine with auto fallback
 │   │   │   ├── routes/
 │   │   │   │   ├── groups.ts
 │   │   │   │   ├── preferences.ts              ← GET only; writes via socket
-│   │   │   │   └── consensus.ts                ← GET latest only
+│   │   │   │   ├── consensus.ts                ← GET latest only
+│   │   │   │   ├── candidates.ts               ← GET candidates catalog
+│   │   │   │   └── users.ts                    ← GET/POST custom member profiles
 │   │   │   ├── middleware/
 │   │   │   │   ├── errorHandler.ts
 │   │   │   │   └── validate.ts
@@ -81,22 +93,23 @@ consensusAI/
 │   └── client/
 │       ├── src/
 │       │   ├── api/
-│       │   │   └── groupApi.ts                 ← REST reads only
+│       │   │   └── groupApi.ts                 ← REST API client
 │       │   ├── components/
 │       │   │   ├── MemberCard.tsx
-│       │   │   ├── PreferenceForm.tsx           ← saves on blur
+│       │   │   ├── PreferenceForm.tsx           ← tag chips & range sliders, auto-save
 │       │   │   ├── ConflictPanel.tsx
 │       │   │   ├── ScoreBar.tsx
 │       │   │   ├── RoleAllocationTable.tsx
 │       │   │   ├── ExplanationPanel.tsx
 │       │   │   ├── ConsensusSummaryPanel.tsx   ← embedded in dashboard
+│       │   │   ├── CandidateCatalogModal.tsx   ← candidate archetypes modal
 │       │   │   └── RealtimeBadge.tsx
 │       │   ├── pages/
-│       │   │   ├── Landing.tsx
+│       │   │   ├── Landing.tsx                  ← cyber-glass hero & project preview
 │       │   │   ├── CreateGroup.tsx
-│       │   │   ├── JoinGroup.tsx
-│       │   │   ├── GroupDashboard.tsx           ← includes ConsensusSummaryPanel
-│       │   │   └── ConsensusResult.tsx          ← full detail, shareable URL
+│       │   │   ├── JoinGroup.tsx                ← preset & custom member registration
+│       │   │   ├── GroupDashboard.tsx           ← live multi-user consensus room
+│       │   │   └── ConsensusResult.tsx          ← full report & Markdown exporter
 │       │   ├── hooks/
 │       │   │   └── useGroupSession.ts           ← single hook owns all state + socket
 │       │   ├── store/
