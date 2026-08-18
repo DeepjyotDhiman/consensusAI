@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { groupApi } from '../api/groupApi.ts';
 import { useGroupStore } from '../store/groupStore.ts';
@@ -11,13 +11,238 @@ import ErrorBoundary from '../components/ErrorBoundary.tsx';
 import ConflictPanel from '../components/ConflictPanel.tsx';
 import ConsensusSummaryPanel from '../components/ConsensusSummaryPanel.tsx';
 import CandidateCatalogModal from '../components/CandidateCatalogModal.tsx';
+import LeaderboardModal from '../components/LeaderboardModal.tsx';
 import type { Preference } from '@consensus/shared';
+import { computeTaskAssignments } from '../utils/projectTaskMapper.ts';
 
 const LS_KEYS = {
   userId: 'consensus_userId',
   groupMemberId: 'consensus_groupMemberId',
   groupId: 'consensus_groupId',
 } as const;
+
+function safeCsvToArray(input: any): string[] {
+  if (Array.isArray(input)) return input.filter(Boolean).map(String);
+  if (typeof input === 'string') {
+    return input.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+interface TargetProjectTaskAllocationProps {
+  consensusResult: ConsensusOutput | null;
+  members: MemberWithDisplay[];
+  preferencesMap?: Record<string, Preference | null>;
+}
+
+function TargetProjectTaskAllocation({
+  consensusResult,
+  members,
+  preferencesMap = {},
+}: TargetProjectTaskAllocationProps) {
+  const { assignedTasks, standbyMembers, profile } = useMemo(() => {
+    if (!consensusResult || members.length === 0) {
+      return { assignedTasks: [], standbyMembers: members, profile: null };
+    }
+    const projectName = consensusResult.recommendation || 'Community Design System';
+    const { profile, assigned, standby } = computeTaskAssignments(projectName, members, preferencesMap);
+    return { assignedTasks: assigned, standbyMembers: standby, profile };
+  }, [consensusResult, members, preferencesMap]);
+
+  if (!consensusResult || !profile) return null;
+
+  return (
+    <div className="glass-card-dark p-3.5 sm:p-4 text-white space-y-3 text-left">
+      <div className="flex items-center justify-between border-b border-white/10 pb-2 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🎯</span>
+          <div>
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-200">
+              Current Target Project: <span className="text-teal-400">{consensusResult.recommendation}</span>
+            </h3>
+            <p className="text-[11px] text-slate-400">
+              Dynamic skill-matched task assignments recalculating live.
+            </p>
+          </div>
+        </div>
+        <span className="text-[10px] font-bold text-teal-300 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20 font-mono">
+          Score: {consensusResult.groupScore}%
+        </span>
+      </div>
+
+      <div className="space-y-1.5">
+        <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+          Skill-Matched Task Allocations ({assignedTasks.length})
+        </h4>
+        {assignedTasks.length === 0 ? (
+          <p className="text-xs text-slate-500 italic py-1">
+            No team members currently match the required project skills.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {assignedTasks.map(({ member, matchedSkill, task }) => (
+              <div
+                key={member.id}
+                className="bg-slate-800/60 border border-white/10 p-2.5 rounded-lg flex items-center justify-between gap-2"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-xs"
+                    style={{ backgroundColor: member.avatarColor || '#0d9488' }}
+                  >
+                    {member.displayName[0]}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-white truncate">{member.displayName}</p>
+                    <p className="text-[10px] text-slate-300 truncate">{task}</p>
+                  </div>
+                </div>
+                <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                  ✓ {matchedSkill}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Skill Gap Detected Alert */}
+      <div className="mt-3 bg-amber-900/20 border border-amber-500/40 rounded-lg p-3 flex items-start gap-2.5 text-amber-200 text-left">
+        <span className="text-lg shrink-0 mt-0.5">⚠️</span>
+        <div>
+          <h4 className="font-bold text-xs">Skill Gap Detected</h4>
+          <p className="text-[11px] opacity-90 mt-0.5 leading-snug">
+            Your team is missing <strong>UI/UX Design, Figma, and CSS</strong> required for this project. Upskill and update your profiles to unlock these tasks!
+          </p>
+        </div>
+      </div>
+
+      {standbyMembers.length > 0 && (
+        <div className="pt-2 border-t border-white/10 space-y-1.5">
+          <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1">
+            <span>⚠️ On Standby / Upskilling ({standbyMembers.length})</span>
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            {standbyMembers.map((member) => (
+              <div
+                key={member.id}
+                className="bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md flex items-center gap-1.5 text-[11px] text-amber-300"
+              >
+                <span className="font-bold">{member.displayName}</span>
+                <span className="text-[9px] text-amber-400/80 italic">
+                  — Needs skills
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ChatMessageItem {
+  id: string;
+  senderName: string;
+  avatarColor?: string;
+  text: string;
+}
+
+function WorkspaceChat({ members, currentUserId }: { members: MemberWithDisplay[]; currentUserId?: string | null }) {
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
+  const [input, setInput] = useState('');
+
+  const activeSender = members.find((m) => m.id === selectedMemberId || m.userId === currentUserId) || members[0];
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !activeSender) return;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        senderName: activeSender.displayName,
+        avatarColor: activeSender.avatarColor,
+        text: input.trim(),
+      },
+    ]);
+    setInput('');
+  };
+
+  return (
+    <section className="bg-slate-900 border border-white/10 rounded-xl p-4 flex flex-col text-left space-y-3 shadow-lg">
+      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+          <span>💬 Workspace Team Discussion</span>
+        </h3>
+        <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+          {members.length} Member{members.length === 1 ? '' : 's'}
+        </span>
+      </div>
+
+      <div className="overflow-y-auto max-h-48 space-y-2 pr-1 text-xs">
+        {messages.length === 0 ? (
+          <p className="text-[11px] text-slate-500 italic text-center py-3">
+            No workspace messages yet. Start chatting with your team!
+          </p>
+        ) : (
+          messages.map((msg) => (
+            <div key={msg.id} className="flex items-start gap-2">
+              <span
+                className="h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 mt-0.5 shadow-xs"
+                style={{ backgroundColor: msg.avatarColor || '#0d9488' }}
+              >
+                {(msg.senderName || '?')[0]}
+              </span>
+              <div>
+                <span className="font-bold text-teal-400 mr-1.5">{msg.senderName || 'Member'}:</span>
+                <span className="text-slate-300 leading-snug">{msg.text}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <form onSubmit={handleSend} className="flex flex-col gap-2 pt-1">
+        {members.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400 font-medium">Sending as:</span>
+            <select
+              value={selectedMemberId || activeSender?.id || ''}
+              onChange={(e) => setSelectedMemberId(e.target.value)}
+              className="bg-slate-800 border border-white/10 text-white text-[11px] rounded-md px-2 py-1 focus:outline-none focus:border-teal-500 font-medium cursor-pointer"
+            >
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.displayName} {m.userId === currentUserId ? '(You)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={members.length === 0 ? 'Waiting for team members...' : 'Message team members...'}
+            disabled={members.length === 0}
+            className="flex-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={members.length === 0 || !input.trim()}
+            className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
+          >
+            Send
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
 
 export default function GroupDashboard() {
   const { id: groupId = '' } = useParams<{ id: string }>();
@@ -27,6 +252,7 @@ export default function GroupDashboard() {
   const [currentView, setCurrentView] = useState<'FORM' | 'LIVE_RESULTS'>('FORM');
   const [copiedCode, setCopiedCode] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Read identity from localStorage on mount
@@ -65,6 +291,12 @@ export default function GroupDashboard() {
     }
     setCurrentView('LIVE_RESULTS');
     showToast('Form submitted! Viewing real-time consensus results.');
+    setTimeout(() => {
+      window.scrollTo({
+        top: 320,
+        behavior: 'smooth',
+      });
+    }, 50);
   }
 
   function showToast(msg: string) {
@@ -100,7 +332,7 @@ export default function GroupDashboard() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between flex-wrap gap-2.5 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-3">
           <Link
             to="/"
@@ -113,6 +345,16 @@ export default function GroupDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              console.log('[UI Click] Leaderboard button clicked');
+              setLeaderboardOpen(true);
+            }}
+            className="bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer"
+          >
+            <span>🏆 Leaderboard</span>
+          </button>
+
           {/* Step view tab indicator */}
           <div className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-1 text-xs font-semibold">
             <button
@@ -230,6 +472,8 @@ export default function GroupDashboard() {
           )}
         </div>
 
+
+
         {/* Toast Alert */}
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-lg flex items-center gap-2">
@@ -274,6 +518,9 @@ export default function GroupDashboard() {
                   )}
                 </div>
               </section>
+
+              {/* Workspace Team Chat Panel */}
+              <WorkspaceChat members={members} currentUserId={currentUserId} />
             </div>
 
             {/* Right Main Column: Preference Form */}
@@ -336,6 +583,13 @@ export default function GroupDashboard() {
               </button>
             </div>
 
+            {/* Dynamic Target Project & Task Allocation Banner */}
+            <TargetProjectTaskAllocation
+              consensusResult={consensusResult}
+              members={members}
+              preferencesMap={preferencesMap}
+            />
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left Column: Connected Members & Conflict Panel */}
               <div className="space-y-6">
@@ -392,8 +646,14 @@ export default function GroupDashboard() {
         )}
       </div>
 
-      {/* Catalog Modal */}
+      {/* Catalog & Leaderboard Modals */}
       <CandidateCatalogModal isOpen={catalogOpen} onClose={() => setCatalogOpen(false)} />
+      <LeaderboardModal
+        isOpen={leaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
+        members={members}
+        memberScores={consensusResult?.memberScores}
+      />
     </div>
   );
 }

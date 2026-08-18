@@ -73,10 +73,12 @@ export default function ConsensusResult() {
 
   const result = session.consensusResult ?? staticResult;
   const displayMembers = session.members.length > 0 ? session.members : members;
+  const groupName = store.group?.name || 'Group Team';
+  const projectName = result?.recommendation || 'Community Design System';
 
   function generateMarkdownReport(): string {
     if (!result) return '';
-    return `# ConsensusAI Report — ${result.recommendation}
+    return `# Team: ${groupName} | Project: ${projectName} — Consensus AI Report
 
 ## Recommendation Overview
 - **Winning Candidate**: ${result.recommendation} (${result.candidateId})
@@ -103,6 +105,10 @@ ${result.conflicts.map((c) => `- [${c.severity.toUpperCase()}] ${c.type}: ${c.de
 ${result.explanation.map((e) => `- ${e}`).join('\n')}
 `;
   }
+
+  const handleDownloadPDF = () => {
+    window.print();
+  };
 
   async function handleCopyMarkdown() {
     const md = generateMarkdownReport();
@@ -168,7 +174,7 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Header */}
-      <header className="border-b border-slate-200 px-6 py-3.5 flex items-center justify-between bg-white sticky top-0 z-30 shadow-xs">
+      <header className="border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between flex-wrap gap-2.5 bg-white sticky top-0 z-30 shadow-xs">
         <Link
           to={`/group/${groupId}`}
           className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1"
@@ -177,6 +183,12 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
         </Link>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleDownloadPDF}
+            className="enterprise-btn-dark text-xs py-2 px-4 cursor-pointer flex items-center gap-1.5"
+          >
+            📄 Download Report (PDF)
+          </button>
           <button
             onClick={handleCopyShareLink}
             className="enterprise-btn-secondary text-xs py-1.5 px-3 cursor-pointer"
@@ -194,6 +206,16 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
 
       {/* Main Body */}
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 flex-1 w-full">
+        {/* Printable PDF Header with Team & Project Name */}
+        <div className="text-center pb-3 border-b border-slate-200">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Team: <span className="text-teal-700">{groupName}</span> | Project: <span className="text-indigo-700">{projectName}</span> — Consensus Report
+          </h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            AI-driven project recommendation, role allocation, and team fit breakdown.
+          </p>
+        </div>
+
         {/* Winner Hero Card */}
         <div className="enterprise-card rounded-2xl p-6 border border-slate-200 relative overflow-hidden bg-white shadow-sm">
           <div className="flex items-start justify-between gap-4 flex-wrap mb-4 relative z-10">
@@ -243,17 +265,17 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
         </div>
 
         {/* Role Allocation Table */}
-        {Object.keys(result.roleAllocation).length > 0 && (
-          <div className="enterprise-card rounded-2xl p-6">
-            <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-4">
-              Assigned Team Roles
-            </h2>
-            <RoleAllocationTable
-              roleAllocation={result.roleAllocation}
-              members={displayMembers}
-            />
-          </div>
-        )}
+        <div className="enterprise-card rounded-2xl p-6">
+          <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-4">
+            Assigned Team Roles
+          </h2>
+          <RoleAllocationTable
+            roleAllocation={result.roleAllocation}
+            members={displayMembers}
+            preferencesMap={session.preferencesMap}
+            projectName={projectName}
+          />
+        </div>
 
         {/* Conflict Analysis */}
         <div className="enterprise-card rounded-2xl p-6">

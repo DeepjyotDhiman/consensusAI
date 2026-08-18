@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import CandidateCatalogModal from '../components/CandidateCatalogModal.tsx';
 import JoinGroupModal from '../components/JoinGroupModal.tsx';
+import LeaderboardModal from '../components/LeaderboardModal.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 
 const FLOW_STEPS = [
@@ -34,18 +35,19 @@ const FLOW_STEPS = [
 export default function Landing() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
 
   const primaryBtnClass =
-    'bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-lg shadow-teal-500/30 transition-all duration-300 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 cursor-pointer';
+    'enterprise-btn-primary py-3 px-6 text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer';
 
   const secondaryBtnClass =
-    'bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 shadow-sm cursor-pointer';
+    'enterprise-btn-secondary py-3 px-6 text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Header Navigation / Navbar */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between sticky top-0 z-40 shadow-sm">
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between flex-wrap gap-2 sticky top-0 z-40 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-xl bg-teal-600 flex items-center justify-center font-extrabold text-white text-sm shadow-md shadow-teal-500/20">
             C
@@ -61,6 +63,16 @@ export default function Landing() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              console.log('[UI Click] Leaderboard clicked');
+              setLeaderboardOpen(true);
+            }}
+            className="text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 font-bold px-3 py-1.5 rounded-lg border border-amber-200/80 transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+          >
+            <span>🏆 Leaderboard</span>
+          </button>
+
           <button
             onClick={() => {
               console.log('[UI Click] Explore Project Catalog clicked');
@@ -215,6 +227,7 @@ export default function Landing() {
       {/* Modals */}
       <CandidateCatalogModal isOpen={catalogOpen} onClose={() => setCatalogOpen(false)} />
       <JoinGroupModal isOpen={joinModalOpen} onClose={() => setJoinModalOpen(false)} />
+      <LeaderboardModal isOpen={leaderboardOpen} onClose={() => setLeaderboardOpen(false)} />
     </div>
   );
 }

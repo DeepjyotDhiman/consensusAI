@@ -17,6 +17,10 @@ function scoreColor(score: number): string {
 }
 
 export default function ConsensusSummaryPanel({ consensusResult, members, groupId }: Props) {
+  const handleDownloadPDF = () => {
+    window.print();
+  };
+
   if (!consensusResult) {
     const hasEnoughMembers = members.length >= 2;
     return (
@@ -100,7 +104,7 @@ export default function ConsensusSummaryPanel({ consensusResult, members, groupI
       )}
 
       {/* Link to full result */}
-      <div className="pt-2">
+      <div className="pt-2 flex items-center justify-between gap-3">
         <Link
           to={`/group/${groupId}/result`}
           className="inline-flex items-center gap-1.5 text-xs font-extrabold text-teal-600 hover:text-teal-700 transition-colors"
@@ -110,6 +114,12 @@ export default function ConsensusSummaryPanel({ consensusResult, members, groupI
             <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
           </svg>
         </Link>
+        <button
+          onClick={handleDownloadPDF}
+          className="enterprise-btn-dark text-xs py-2 px-4 cursor-pointer flex items-center gap-1.5"
+        >
+          📄 Download Report (PDF)
+        </button>
       </div>
     </div>
   );
