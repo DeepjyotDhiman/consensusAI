@@ -65,13 +65,13 @@ const insertPref = db.prepare(
 insertPref.run({
   id: "pref-alice",
   group_member_id: "member-alice",
-  skills: JSON.stringify(["Machine Learning", "Python", "Data Analysis"]),
+  skills: JSON.stringify([]),
   availability_hours: 20,
   budget: 500,
-  interests: JSON.stringify(["AI", "Social Impact"]),
-  learning_goals: JSON.stringify(["Deep Learning", "MLOps"]),
+  interests: JSON.stringify([]),
+  learning_goals: JSON.stringify([]),
   priorities: JSON.stringify(["impact", "learning"]),
-  notes: "Excited to work on something with real-world impact using AI.",
+  notes: "",
   updated_at: NOW,
 });
 
@@ -79,13 +79,13 @@ insertPref.run({
 insertPref.run({
   id: "pref-bob",
   group_member_id: "member-bob",
-  skills: JSON.stringify(["React", "TypeScript", "Python", "UI Design"]),
+  skills: JSON.stringify([]),
   availability_hours: 15,
   budget: 200,
-  interests: JSON.stringify(["AI", "Frontend"]),
-  learning_goals: JSON.stringify(["Machine Learning", "React Native"]),
+  interests: JSON.stringify([]),
+  learning_goals: JSON.stringify([]),
   priorities: JSON.stringify(["creativity", "learning"]),
-  notes: "Want to combine frontend skills with AI/ML — really interested in building user-facing ML products.",
+  notes: "",
   updated_at: NOW,
 });
 
@@ -93,13 +93,13 @@ insertPref.run({
 insertPref.run({
   id: "pref-carol",
   group_member_id: "member-carol",
-  skills: JSON.stringify(["Network Security", "Linux", "Python"]),
+  skills: JSON.stringify([]),
   availability_hours: 15,
   budget: 150,
-  interests: JSON.stringify(["AI", "Cybersecurity"]),
-  learning_goals: JSON.stringify(["Machine Learning", "Penetration Testing"]),
+  interests: JSON.stringify([]),
+  learning_goals: JSON.stringify([]),
   priorities: JSON.stringify(["security", "impact"]),
-  notes: "Want to build something that combines AI with security — privacy-preserving ML.",
+  notes: "",
   updated_at: NOW,
 });
 

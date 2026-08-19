@@ -15,6 +15,8 @@ export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
 interface GroupState {
   group: Group | null;
+  groupName: string | null;
+  projectName: string | null;
   members: MemberWithDisplay[];
   preferencesMap: Record<string, Preference | null>;
   consensusResult: ConsensusOutput | null;
@@ -26,7 +28,10 @@ interface GroupState {
 
   // Actions
   setGroup: (group: Group) => void;
+  setGroupName: (groupName: string) => void;
+  setProjectName: (projectName: string) => void;
   setMembers: (members: MemberWithDisplay[]) => void;
+  removeMember: (memberId: string) => void;
   setPreference: (groupMemberId: string, preference: Preference | null) => void;
   setConsensusResult: (result: ConsensusOutput | null) => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
@@ -36,6 +41,8 @@ interface GroupState {
 
 const initialState = {
   group: null,
+  groupName: null,
+  projectName: null,
   members: [],
   preferencesMap: {},
   consensusResult: null,
@@ -46,8 +53,22 @@ const initialState = {
 
 export const useGroupStore = create<GroupState>((set) => ({
   ...initialState,
-  setGroup: (group) => set({ group }),
+  setGroup: (group) => set({ group, groupName: group.name }),
+  setGroupName: (groupName) => set({ groupName }),
+  setProjectName: (projectName) => set({ projectName }),
   setMembers: (members) => set({ members }),
+  removeMember: (memberId) =>
+    set((state) => {
+      const updatedMembers = state.members.filter(
+        (m) => m.id !== memberId && m.userId !== memberId
+      );
+      const updatedPrefs = { ...state.preferencesMap };
+      delete updatedPrefs[memberId];
+      return {
+        members: updatedMembers,
+        preferencesMap: updatedPrefs,
+      };
+    }),
   setPreference: (groupMemberId, preference) =>
     set((state) => ({
       preferencesMap: { ...state.preferencesMap, [groupMemberId]: preference }

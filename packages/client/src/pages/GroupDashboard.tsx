@@ -12,8 +12,13 @@ import ConflictPanel from '../components/ConflictPanel.tsx';
 import ConsensusSummaryPanel from '../components/ConsensusSummaryPanel.tsx';
 import CandidateCatalogModal from '../components/CandidateCatalogModal.tsx';
 import LeaderboardModal from '../components/LeaderboardModal.tsx';
+import NavbarLogo from '../components/NavbarLogo.tsx';
 import type { Preference } from '@consensus/shared';
 import { computeTaskAssignments } from '../utils/projectTaskMapper.ts';
+import { triggerConfetti } from '../utils/confetti.ts';
+import { SkeletonTaskAllocation, SkeletonConsensusSummary } from '../components/SkeletonCard.tsx';
+import AiThinkingTerminal from '../components/AiThinkingTerminal.tsx';
+import TeamSkillRadarChart from '../components/TeamSkillRadarChart.tsx';
 
 const LS_KEYS = {
   userId: 'consensus_userId',
@@ -40,38 +45,86 @@ function TargetProjectTaskAllocation({
   members,
   preferencesMap = {},
 }: TargetProjectTaskAllocationProps) {
-  const { assignedTasks, standbyMembers, profile } = useMemo(() => {
-    if (!consensusResult || members.length === 0) {
-      return { assignedTasks: [], standbyMembers: members, profile: null };
-    }
-    const projectName = consensusResult.recommendation || 'Community Design System';
-    const { profile, assigned, standby } = computeTaskAssignments(projectName, members, preferencesMap);
-    return { assignedTasks: assigned, standbyMembers: standby, profile };
-  }, [consensusResult, members, preferencesMap]);
+  const store = useGroupStore();
+  const [editingProject, setEditingProject] = useState(false);
+  const [projectInput, setProjectInput] = useState('');
 
-  if (!consensusResult || !profile) return null;
+  const activeProjectName = store.projectName || consensusResult?.recommendation || 'E-commerce Platform';
+
+  const { assignedTasks, standbyMembers, profile, missingSkills } = useMemo(() => {
+    if (!consensusResult && members.length === 0) {
+      return { assignedTasks: [], standbyMembers: members, profile: null, missingSkills: [] };
+    }
+    const { profile, assigned, standby, missingSkills } = computeTaskAssignments(activeProjectName, members, preferencesMap);
+    return { assignedTasks: assigned, standbyMembers: standby, profile, missingSkills };
+  }, [consensusResult, members, preferencesMap, activeProjectName]);
+
+  const handleSaveProjectName = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (projectInput.trim()) {
+      store.setProjectName(projectInput.trim());
+      if (store.group?.id) {
+        localStorage.setItem(`consensus_projectName_${store.group.id}`, projectInput.trim());
+      }
+    }
+    setEditingProject(false);
+  };
+
+  if (!profile) return null;
 
   return (
-    <div className="glass-card-dark p-3.5 sm:p-4 text-white space-y-3 text-left">
-      <div className="flex items-center justify-between border-b border-white/10 pb-2 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">🎯</span>
+    <div className="enterprise-card p-4 sm:p-5 space-y-4 text-left">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl">🎯</span>
           <div>
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-200">
-              Current Target Project: <span className="text-teal-400">{consensusResult.recommendation}</span>
-            </h3>
-            <p className="text-[11px] text-slate-400">
-              Dynamic skill-matched task assignments recalculating live.
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                Current Target Project: <span className="text-teal-700">{profile.projectName || activeProjectName}</span>
+              </h3>
+              {editingProject ? (
+                <form onSubmit={handleSaveProjectName} className="inline-flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    className="px-2.5 py-1 text-xs bg-white border border-teal-500 rounded-lg text-slate-900 focus:outline-none shadow-sm"
+                    placeholder="e.g. E-commerce, EduBot, Mobile App"
+                    value={projectInput}
+                    onChange={(e) => setProjectInput(e.target.value)}
+                    autoFocus
+                  />
+                  <button type="submit" className="text-[10px] bg-teal-600 hover:bg-teal-700 text-white font-bold px-2.5 py-1 rounded-lg cursor-pointer">
+                    Save
+                  </button>
+                  <button type="button" onClick={() => setEditingProject(false)} className="text-[10px] bg-slate-100 text-slate-600 hover:bg-slate-200 px-2.5 py-1 rounded-lg cursor-pointer">
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={() => {
+                    setProjectInput(activeProjectName);
+                    setEditingProject(true);
+                  }}
+                  className="text-[10px] text-teal-700 hover:text-teal-800 underline font-semibold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200 cursor-pointer"
+                >
+                  ✏️ Edit Project
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Required stack: <span className="font-mono font-bold text-teal-700">{profile.requiredSkills.join(', ')}</span>
             </p>
           </div>
         </div>
-        <span className="text-[10px] font-bold text-teal-300 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20 font-mono">
-          Score: {consensusResult.groupScore}%
-        </span>
+        {consensusResult && (
+          <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200 font-mono">
+            Score: {consensusResult.groupScore}%
+          </span>
+        )}
       </div>
 
-      <div className="space-y-1.5">
-        <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+      <div className="space-y-2">
+        <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
           Skill-Matched Task Allocations ({assignedTasks.length})
         </h4>
         {assignedTasks.length === 0 ? (
@@ -79,25 +132,25 @@ function TargetProjectTaskAllocation({
             No team members currently match the required project skills.
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {assignedTasks.map(({ member, matchedSkill, task }) => (
               <div
                 key={member.id}
-                className="bg-slate-800/60 border border-white/10 p-2.5 rounded-lg flex items-center justify-between gap-2"
+                className="bg-slate-50 border border-slate-200/80 p-3 rounded-xl flex items-center justify-between gap-2 shadow-xs hover:border-teal-300 transition-all"
               >
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <span
-                    className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-xs"
+                    className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-xs"
                     style={{ backgroundColor: member.avatarColor || '#0d9488' }}
                   >
                     {member.displayName[0]}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-white truncate">{member.displayName}</p>
-                    <p className="text-[10px] text-slate-300 truncate">{task}</p>
+                    <p className="text-xs font-bold text-slate-900 truncate">{member.displayName}</p>
+                    <p className="text-[10px] text-slate-600 truncate">{task}</p>
                   </div>
                 </div>
-                <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                <span className="text-[9px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
                   ✓ {matchedSkill}
                 </span>
               </div>
@@ -106,31 +159,72 @@ function TargetProjectTaskAllocation({
         )}
       </div>
 
-      {/* Skill Gap Detected Alert */}
-      <div className="mt-3 bg-amber-900/20 border border-amber-500/40 rounded-lg p-3 flex items-start gap-2.5 text-amber-200 text-left">
-        <span className="text-lg shrink-0 mt-0.5">⚠️</span>
-        <div>
-          <h4 className="font-bold text-xs">Skill Gap Detected</h4>
-          <p className="text-[11px] opacity-90 mt-0.5 leading-snug">
-            Your team is missing <strong>UI/UX Design, Figma, and CSS</strong> required for this project. Upskill and update your profiles to unlock these tasks!
-          </p>
-        </div>
-      </div>
+      {/* Project Skill Gap Alert - Only rendered if there are actual missing skills */}
+      {missingSkills && missingSkills.length > 0 && (
+        <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl p-4 text-orange-950 text-left space-y-3 shadow-xs">
+          <div className="flex items-start gap-2.5">
+            <span className="text-lg shrink-0 mt-0.5">⚠️</span>
+            <div>
+              <h4 className="font-extrabold text-xs text-orange-950 uppercase tracking-wider">
+                Project Skill Gap Detected
+              </h4>
+              <p className="text-xs text-orange-900 mt-1 leading-snug font-medium">
+                Your team is missing the following required skills: <strong className="font-mono text-orange-950 font-bold bg-orange-100/80 px-2 py-0.5 rounded border border-orange-300/80">{missingSkills.join(', ')}</strong>. Please upskill a team member or add someone new to fulfill these requirements.
+              </p>
+            </div>
+          </div>
 
+          {/* AI Suggested Learning Paths */}
+          <div className="pt-3 border-t border-orange-200/80 space-y-2">
+            <div className="flex items-center gap-1.5 text-indigo-900">
+              <span className="text-xs">✨</span>
+              <h5 className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-900">
+                Suggested Learning Paths
+              </h5>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {missingSkills.map((skill) => (
+                <a
+                  key={skill}
+                  href={`https://www.youtube.com/results?search_query=${encodeURIComponent('learn ' + skill + ' tutorial')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 hover:text-indigo-900 hover:shadow-xs transition-all duration-200 cursor-pointer group"
+                >
+                  <span>▶ Learn {skill}</span>
+                  <svg className="w-3 h-3 text-indigo-500 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Constructive Upskilling Status for Team Members Available for New Tasks */}
       {standbyMembers.length > 0 && (
-        <div className="pt-2 border-t border-white/10 space-y-1.5">
-          <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1">
-            <span>⚠️ On Standby / Upskilling ({standbyMembers.length})</span>
+        <div className="pt-3 border-t border-slate-100 space-y-2">
+          <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 flex items-center gap-1">
+            <span>💡 Team Members Ready for Upskilling ({standbyMembers.length})</span>
           </h4>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {standbyMembers.map((member) => (
               <div
                 key={member.id}
-                className="bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md flex items-center gap-1.5 text-[11px] text-amber-300"
+                className="bg-amber-50/80 border border-amber-200/80 p-2.5 rounded-xl flex items-center justify-between gap-2 text-xs text-amber-950"
               >
-                <span className="font-bold">{member.displayName}</span>
-                <span className="text-[9px] text-amber-400/80 italic">
-                  — Needs skills
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-xs"
+                    style={{ backgroundColor: member.avatarColor || '#0d9488' }}
+                  >
+                    {member.displayName[0]}
+                  </span>
+                  <span className="font-bold truncate">{member.displayName}</span>
+                </div>
+                <span className="text-[10px] font-medium text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-300/60 truncate">
+                  Available for Upskilling in: {missingSkills.length > 0 ? missingSkills.join(', ') : 'New Tech Stack'}
                 </span>
               </div>
             ))}
@@ -171,19 +265,19 @@ function WorkspaceChat({ members, currentUserId }: { members: MemberWithDisplay[
   };
 
   return (
-    <section className="bg-slate-900 border border-white/10 rounded-xl p-4 flex flex-col text-left space-y-3 shadow-lg">
-      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+    <section className="enterprise-card p-4 flex flex-col text-left space-y-3">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
           <span>💬 Workspace Team Discussion</span>
         </h3>
-        <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+        <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
           {members.length} Member{members.length === 1 ? '' : 's'}
         </span>
       </div>
 
       <div className="overflow-y-auto max-h-48 space-y-2 pr-1 text-xs">
         {messages.length === 0 ? (
-          <p className="text-[11px] text-slate-500 italic text-center py-3">
+          <p className="text-[11px] text-slate-400 italic text-center py-3">
             No workspace messages yet. Start chatting with your team!
           </p>
         ) : (
@@ -196,8 +290,8 @@ function WorkspaceChat({ members, currentUserId }: { members: MemberWithDisplay[
                 {(msg.senderName || '?')[0]}
               </span>
               <div>
-                <span className="font-bold text-teal-400 mr-1.5">{msg.senderName || 'Member'}:</span>
-                <span className="text-slate-300 leading-snug">{msg.text}</span>
+                <span className="font-bold text-teal-700 mr-1.5">{msg.senderName || 'Member'}:</span>
+                <span className="text-slate-800 leading-snug">{msg.text}</span>
               </div>
             </div>
           ))
@@ -207,11 +301,11 @@ function WorkspaceChat({ members, currentUserId }: { members: MemberWithDisplay[
       <form onSubmit={handleSend} className="flex flex-col gap-2 pt-1">
         {members.length > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400 font-medium">Sending as:</span>
+            <span className="text-[10px] text-slate-500 font-medium">Sending as:</span>
             <select
               value={selectedMemberId || activeSender?.id || ''}
               onChange={(e) => setSelectedMemberId(e.target.value)}
-              className="bg-slate-800 border border-white/10 text-white text-[11px] rounded-md px-2 py-1 focus:outline-none focus:border-teal-500 font-medium cursor-pointer"
+              className="bg-white border border-slate-200 text-slate-800 text-[11px] rounded-lg px-2 py-1 focus:outline-none focus:border-teal-500 font-medium cursor-pointer"
             >
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -229,12 +323,12 @@ function WorkspaceChat({ members, currentUserId }: { members: MemberWithDisplay[
             onChange={(e) => setInput(e.target.value)}
             placeholder={members.length === 0 ? 'Waiting for team members...' : 'Message team members...'}
             disabled={members.length === 0}
-            className="flex-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-white/10 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 disabled:opacity-50"
+            className="flex-1 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-teal-500 disabled:opacity-50 shadow-sm"
           />
           <button
             type="submit"
             disabled={members.length === 0 || !input.trim()}
-            className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
+            className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-sm"
           >
             Send
           </button>
@@ -250,10 +344,20 @@ export default function GroupDashboard() {
   const auth = useAuth();
 
   const [currentView, setCurrentView] = useState<'FORM' | 'LIVE_RESULTS'>('FORM');
+  const [isCalculating, setIsCalculating] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  function handleSwitchToResults() {
+    setIsCalculating(true);
+    setCurrentView('LIVE_RESULTS');
+    setTimeout(() => {
+      setIsCalculating(false);
+      triggerConfetti();
+    }, 2800);
+  }
 
   // Read identity from localStorage on mount
   useEffect(() => {
@@ -270,10 +374,15 @@ export default function GroupDashboard() {
   // Fetch group metadata via REST on mount
   useEffect(() => {
     if (!groupId) return;
+    const savedProject = localStorage.getItem(`consensus_projectName_${groupId}`);
+    if (savedProject) {
+      store.setProjectName(savedProject);
+    }
     groupApi
       .getGroup(groupId)
       .then(({ group }) => {
         store.setGroup(group);
+        store.setGroupName(group.name);
       })
       .catch(console.error);
   }, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -289,7 +398,7 @@ export default function GroupDashboard() {
     if (currentGroupMemberId) {
       session.updatePreference(currentGroupMemberId, prefs);
     }
-    setCurrentView('LIVE_RESULTS');
+    handleSwitchToResults();
     showToast('Form submitted! Viewing real-time consensus results.');
     setTimeout(() => {
       window.scrollTo({
@@ -323,25 +432,37 @@ export default function GroupDashboard() {
     setCurrentView('FORM');
   }
 
-  const { group, members, preferencesMap, consensusResult, currentUserId, currentGroupMemberId, connectionStatus } = store;
+  function handleRemoveMember(memberId: string) {
+    console.log('Remove clicked for ID:', memberId);
+    store.removeMember(memberId);
+    if (selectedGroupMemberId === memberId) {
+      setSelectedGroupMemberId(null);
+    }
+  }
+
+  const { group, groupName, projectName, members, preferencesMap, consensusResult, currentUserId, currentGroupMemberId, connectionStatus } = store;
   const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string | null>(null);
   const activeMemberId = selectedGroupMemberId || currentGroupMemberId || (members[0]?.id ?? null);
   const activeMember = members.find((m) => m.id === activeMemberId);
   const activePreference = activeMemberId ? preferencesMap[activeMemberId] ?? null : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="min-h-screen app-grid-bg text-slate-900 flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between flex-wrap gap-2.5 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1"
-          >
-            ← Home
-          </Link>
+          <NavbarLogo showBadge={false} />
           <span className="text-slate-300">|</span>
-          <span className="text-sm font-bold text-slate-900">Group Workspace Dashboard</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
+              {groupName || group?.name || 'Group Workspace'}
+            </span>
+            {projectName && (
+              <span className="text-[11px] text-teal-700 font-medium bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full font-mono hidden sm:inline-block">
+                🎯 {projectName}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -350,7 +471,7 @@ export default function GroupDashboard() {
               console.log('[UI Click] Leaderboard button clicked');
               setLeaderboardOpen(true);
             }}
-            className="bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer"
+            className="bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 active:scale-95 hover:-translate-y-0.5 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer"
           >
             <span>🏆 Leaderboard</span>
           </button>
@@ -362,7 +483,7 @@ export default function GroupDashboard() {
                 console.log('[UI Click] Tab 1: Form View clicked');
                 setCurrentView('FORM');
               }}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-md transition-all duration-200 active:scale-95 cursor-pointer ${
                 currentView === 'FORM'
                   ? 'bg-teal-600 text-white shadow-sm font-bold'
                   : 'text-slate-600 hover:text-slate-900'
@@ -373,9 +494,9 @@ export default function GroupDashboard() {
             <button
               onClick={() => {
                 console.log('[UI Click] Tab 2: Live Results View clicked');
-                setCurrentView('LIVE_RESULTS');
+                handleSwitchToResults();
               }}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-md transition-all duration-200 active:scale-95 cursor-pointer ${
                 currentView === 'LIVE_RESULTS'
                   ? 'bg-teal-600 text-white shadow-sm font-bold'
                   : 'text-slate-600 hover:text-slate-900'
@@ -387,7 +508,7 @@ export default function GroupDashboard() {
 
           <Link
             to={`/join/${group?.joinCode ?? ''}`}
-            className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm flex items-center gap-1"
+            className="text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 hover:-translate-y-0.5 text-white font-bold px-3 py-1.5 rounded-lg transition-all duration-200 shadow-sm flex items-center gap-1"
           >
             <span>+ Add Member</span>
           </Link>
@@ -403,7 +524,7 @@ export default function GroupDashboard() {
               <span className="text-xs font-bold text-slate-800">{auth.user.displayName}</span>
               <button
                 onClick={auth.logout}
-                className="text-[10px] text-rose-600 hover:text-rose-700 font-bold ml-1 cursor-pointer"
+                className="text-[10px] text-rose-600 hover:text-rose-700 active:scale-90 font-bold ml-1 cursor-pointer transition-all"
               >
                 Sign Out
               </button>
@@ -412,7 +533,7 @@ export default function GroupDashboard() {
 
           <button
             onClick={() => setCatalogOpen(true)}
-            className="text-xs text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors hidden sm:block font-medium cursor-pointer"
+            className="text-xs text-slate-600 hover:text-slate-900 active:scale-95 hover:-translate-y-0.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-all duration-200 hidden sm:block font-medium cursor-pointer"
           >
             Project Catalog
           </button>
@@ -472,8 +593,6 @@ export default function GroupDashboard() {
           )}
         </div>
 
-
-
         {/* Toast Alert */}
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-lg flex items-center gap-2">
@@ -513,6 +632,7 @@ export default function GroupDashboard() {
                         preference={preferencesMap[member.id] ?? null}
                         isCurrentUser={member.userId === currentUserId}
                         onEdit={handleSelectMemberToEdit}
+                        onRemove={handleRemoveMember}
                       />
                     ))
                   )}
@@ -572,7 +692,9 @@ export default function GroupDashboard() {
                   Real-time Group Consensus Panel
                 </h2>
                 <p className="text-xs text-teal-800 font-medium">
-                  Form submitted successfully. Results update live as members update their profiles.
+                  {isCalculating
+                    ? 'Calculating optimal AI role allocation & group consensus...'
+                    : 'Form submitted successfully. Results update live as members update their profiles.'}
                 </p>
               </div>
               <button
@@ -583,65 +705,80 @@ export default function GroupDashboard() {
               </button>
             </div>
 
-            {/* Dynamic Target Project & Task Allocation Banner */}
-            <TargetProjectTaskAllocation
-              consensusResult={consensusResult}
-              members={members}
-              preferencesMap={preferencesMap}
-            />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column: Connected Members & Conflict Panel */}
+            {isCalculating ? (
               <div className="space-y-6">
-                <section className="enterprise-card p-5">
-                  <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-                    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Connected Team Members ({members.length})
-                    </h2>
+                <AiThinkingTerminal membersCount={members.length} />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <SkeletonTaskAllocation />
+                  <SkeletonConsensusSummary />
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Dynamic Target Project & Task Allocation Banner */}
+                <TargetProjectTaskAllocation
+                  consensusResult={consensusResult}
+                  members={members}
+                  preferencesMap={preferencesMap}
+                />
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left Column: Team Radar Chart, Connected Members & Conflict Panel */}
+                  <div className="space-y-6">
+                    <TeamSkillRadarChart members={members} preferencesMap={preferencesMap} />
+
+                    <section className="enterprise-card p-5">
+                      <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          Connected Team Members ({members.length})
+                        </h2>
+                      </div>
+
+                      <div className="space-y-2">
+                        {members.map((member) => (
+                          <MemberCard
+                            key={member.id}
+                            member={member}
+                            preference={preferencesMap[member.id] ?? null}
+                            isCurrentUser={member.userId === currentUserId}
+                            onEdit={handleSelectMemberToEdit}
+                            onRemove={handleRemoveMember}
+                          />
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="enterprise-card p-5">
+                      <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">
+                        Detected Team Conflicts
+                      </h2>
+                      <ConflictPanel conflicts={consensusResult?.conflicts ?? []} />
+                    </section>
                   </div>
 
-                  <div className="space-y-2">
-                    {members.map((member) => (
-                      <MemberCard
-                        key={member.id}
-                        member={member}
-                        preference={preferencesMap[member.id] ?? null}
-                        isCurrentUser={member.userId === currentUserId}
-                        onEdit={handleSelectMemberToEdit}
+                  {/* Right Column: Live Recommendation */}
+                  <div className="space-y-6">
+                    <section className="enterprise-card p-6">
+                      <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2">
+                        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          Live Recommendation
+                        </h2>
+                        {consensusResult && (
+                          <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200 font-bold">
+                            Updated live
+                          </span>
+                        )}
+                      </div>
+                      <ConsensusSummaryPanel
+                        consensusResult={consensusResult}
+                        members={members}
+                        groupId={groupId}
                       />
-                    ))}
+                    </section>
                   </div>
-                </section>
-
-                <section className="enterprise-card p-5">
-                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">
-                    Detected Team Conflicts
-                  </h2>
-                  <ConflictPanel conflicts={consensusResult?.conflicts ?? []} />
-                </section>
-              </div>
-
-              {/* Right Column: Live Recommendation */}
-              <div className="space-y-6">
-                <section className="enterprise-card p-6">
-                  <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2">
-                    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Live Recommendation
-                    </h2>
-                    {consensusResult && (
-                      <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200 font-bold">
-                        Updated live
-                      </span>
-                    )}
-                  </div>
-                  <ConsensusSummaryPanel
-                    consensusResult={consensusResult}
-                    members={members}
-                    groupId={groupId}
-                  />
-                </section>
-              </div>
-            </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

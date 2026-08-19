@@ -137,7 +137,7 @@ export default function PreferenceForm({
                   key={m.id}
                   type="button"
                   onClick={() => onSelectMember && onSelectMember(m.id)}
-                  className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl border transition-all text-xs font-bold cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl border transition-all duration-200 text-xs font-bold cursor-pointer active:scale-95 hover:-translate-y-0.5 ${
                     isSelected
                       ? 'border-teal-600 bg-teal-600 text-white ring-2 ring-teal-500/30 shadow-sm'
                       : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
@@ -180,9 +180,9 @@ export default function PreferenceForm({
                   key={skill}
                   type="button"
                   onClick={() => togglePreset('skills', skill)}
-                  className={`text-[10px] px-2 py-0.5 rounded-md border font-mono transition-all cursor-pointer ${
+                  className={`text-[10px] px-2 py-0.5 rounded-md border font-mono transition-all duration-150 cursor-pointer active:scale-90 ${
                     active
-                      ? 'bg-teal-600 border-teal-600 text-white font-bold'
+                      ? 'bg-teal-600 border-teal-600 text-white font-bold shadow-xs'
                       : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'
                   }`}
                 >
@@ -215,9 +215,9 @@ export default function PreferenceForm({
                   key={interest}
                   type="button"
                   onClick={() => togglePreset('interests', interest)}
-                  className={`text-[10px] px-2 py-0.5 rounded-md border font-mono transition-all cursor-pointer ${
+                  className={`text-[10px] px-2 py-0.5 rounded-md border font-mono transition-all duration-150 cursor-pointer active:scale-90 ${
                     active
-                      ? 'bg-teal-600 border-teal-600 text-white font-bold'
+                      ? 'bg-teal-600 border-teal-600 text-white font-bold shadow-xs'
                       : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'
                   }`}
                 >
@@ -290,7 +290,7 @@ export default function PreferenceForm({
           <button
             type="button"
             onClick={handleDoneClick}
-            className="w-full py-3.5 rounded-xl bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-teal-500/30 hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+            className="w-full py-3.5 rounded-xl bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-teal-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
           >
             <span>DONE — View Group Consensus Results</span>
             <span className="text-sm">→</span>

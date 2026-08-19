@@ -3,6 +3,7 @@ import type { ConsensusOutput } from '@consensus/shared';
 import type { MemberWithDisplay } from '../store/groupStore.ts';
 import ScoreBar from './ScoreBar.tsx';
 import ExplanationPanel from './ExplanationPanel.tsx';
+import { triggerConfetti } from '../utils/confetti.ts';
 
 interface Props {
   consensusResult: ConsensusOutput | null;
@@ -18,7 +19,10 @@ function scoreColor(score: number): string {
 
 export default function ConsensusSummaryPanel({ consensusResult, members, groupId }: Props) {
   const handleDownloadPDF = () => {
-    window.print();
+    triggerConfetti();
+    setTimeout(() => {
+      window.print();
+    }, 400);
   };
 
   if (!consensusResult) {

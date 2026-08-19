@@ -8,6 +8,7 @@ interface Props {
   preference: Preference | null;
   isCurrentUser: boolean;
   onEdit?: (memberId: string) => void;
+  onRemove?: (memberId: string) => void;
 }
 
 function csvToArray(csv: any): string[] {
@@ -16,7 +17,7 @@ function csvToArray(csv: any): string[] {
   return csv.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
-export default function MemberCard({ member, preference, isCurrentUser, onEdit }: Props) {
+export default function MemberCard({ member, preference, isCurrentUser, onEdit, onRemove }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
 
   if (!member) return null;
@@ -48,7 +49,7 @@ export default function MemberCard({ member, preference, isCurrentUser, onEdit }
             setModalOpen(true);
           }
         }}
-        className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-slate-200 hover:border-teal-500/60 hover:shadow-sm cursor-pointer transition-all group"
+        className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-slate-200 hover:border-teal-500/60 hover:shadow-[0_0_20px_rgba(13,148,136,0.12)] hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0 cursor-pointer transition-all duration-200 group"
         title="Click to edit member details"
       >
         {/* Avatar */}
@@ -70,13 +71,43 @@ export default function MemberCard({ member, preference, isCurrentUser, onEdit }
                 You
               </span>
             )}
-            {/* Preference dot indicator */}
-            <span
-              className={`ml-auto h-2 w-2 rounded-full flex-shrink-0 ${
-                hasPrefs ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
-              }`}
-              title={hasPrefs ? 'Preferences synced' : 'No preferences yet'}
-            />
+
+            <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+              {onRemove && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(member.id);
+                  }}
+                  className="text-slate-400 hover:text-red-500 hover:bg-red-500/10 active:scale-90 transition-all rounded p-1"
+                  title={`Remove ${member.displayName}`}
+                  aria-label={`Remove ${member.displayName}`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              )}
+              {/* Preference dot indicator */}
+              <span
+                className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                  hasPrefs ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+                }`}
+                title={hasPrefs ? 'Preferences synced' : 'No preferences yet'}
+              />
+            </div>
           </div>
 
           {/* Preference chips */}

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import { groupApi } from '../api/groupApi.ts';
 import type { Group } from '@consensus/shared';
+import NavbarLogo from '../components/NavbarLogo.tsx';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export default function Dashboard() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [newGroupName, setNewGroupName] = useState('');
+  const [newProjectName, setNewProjectName] = useState('');
   const [creating, setCreating] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export default function Dashboard() {
 
   async function handleCreateGroup(e: React.FormEvent) {
     e.preventDefault();
-    console.log('[UI Click] Create Group Submit triggered:', newGroupName);
+    console.log('[UI Click] Create Group Submit triggered:', newGroupName, newProjectName);
     if (!newGroupName.trim() || !user) return;
 
     setCreating(true);
@@ -60,7 +62,11 @@ export default function Dashboard() {
 
     try {
       const { group } = await groupApi.createGroup(newGroupName.trim(), user.id);
+      if (newProjectName.trim()) {
+        localStorage.setItem(`consensus_projectName_${group.id}`, newProjectName.trim());
+      }
       setNewGroupName('');
+      setNewProjectName('');
       setShowCreateModal(false);
       navigate(`/group/${group.id}`);
     } catch (err: any) {
@@ -71,15 +77,15 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="min-h-screen app-grid-bg text-slate-900 flex flex-col">
       {/* Navigation Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between sticky top-0 z-40 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="text-xs text-slate-600 hover:text-slate-900 font-semibold transition-colors">
-            ← Home
-          </Link>
+        <div className="flex items-center gap-4">
+          <NavbarLogo showBadge={false} />
           <span className="text-slate-300">|</span>
-          <span className="text-sm font-bold text-slate-900">Student Workspace Dashboard</span>
+          <span className="text-xs font-bold text-slate-600 uppercase tracking-wider hidden sm:inline">
+            Student Workspace Dashboard
+          </span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -87,7 +93,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl">
               <span
                 className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm"
-                style={{ backgroundColor: user.avatarColor || '#4f46e5' }}
+                style={{ backgroundColor: user.avatarColor || '#0d9488' }}
               >
                 {user.displayName[0]}
               </span>
@@ -97,7 +103,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={logout}
-                className="text-[10px] text-rose-600 hover:text-rose-700 font-bold ml-2 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm"
+                className="text-[10px] text-rose-600 hover:text-rose-700 font-bold ml-2 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm cursor-pointer"
               >
                 Sign Out
               </button>
@@ -162,16 +168,33 @@ export default function Dashboard() {
             <form onSubmit={handleCreateGroup} className="space-y-4 text-left">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Project Group Name <span className="text-rose-500">*</span>
+                  Group / Team Name <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   className="enterprise-input"
-                  placeholder="e.g. CS490 Senior Capstone AI Team"
+                  placeholder="e.g. CS490 Senior Capstone Alpha Team"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Target Project Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="enterprise-input"
+                  placeholder="e.g. E-commerce Website, EduBot AI Chatbot, Portfolio, Mobile App"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  AI will dynamically calculate tech stack requirements & skill gaps based on your project name.
+                </p>
               </div>
 
               <button
@@ -295,7 +318,7 @@ export default function Dashboard() {
             <form onSubmit={handleCreateGroup} className="space-y-4 text-left">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Project Group Name <span className="text-rose-500">*</span>
+                  Group / Team Name <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -304,6 +327,20 @@ export default function Dashboard() {
                   placeholder="e.g. Fall Hackathon AI Team"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Target Project Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="enterprise-input"
+                  placeholder="e.g. E-commerce, EduBot, Portfolio, Mobile App"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
                 />
               </div>
 
