@@ -6,8 +6,8 @@ interface Props {
 export default function ExplanationPanel({ explanation, maxItems }: Props) {
   if (explanation.length === 0) {
     return (
-      <p className="text-sm text-gray-500 italic">
-        Run consensus to see explanation
+      <p className="text-xs text-slate-500 italic">
+        Run consensus to see detailed trade-off explanation
       </p>
     );
   }
@@ -17,9 +17,9 @@ export default function ExplanationPanel({ explanation, maxItems }: Props) {
   return (
     <ul className="space-y-2">
       {items.map((sentence, i) => (
-        <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
+        <li key={i} className="flex items-start gap-2 text-xs text-slate-700 font-medium">
           <svg
-            className="h-4 w-4 flex-shrink-0 mt-0.5 text-indigo-400"
+            className="h-4 w-4 flex-shrink-0 mt-0.5 text-teal-600"
             viewBox="0 0 20 20"
             fill="currentColor"
           >
@@ -29,7 +29,7 @@ export default function ExplanationPanel({ explanation, maxItems }: Props) {
               clipRule="evenodd"
             />
           </svg>
-          <span>{sentence}</span>
+          <span className="leading-relaxed">{sentence}</span>
         </li>
       ))}
     </ul>

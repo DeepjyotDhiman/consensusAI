@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { groupApi } from '../api/groupApi.ts';
 import { useGroupStore } from '../store/groupStore.ts';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { User } from '@consensus/shared';
 
 const LS_KEYS = {
@@ -11,25 +12,26 @@ const LS_KEYS = {
 } as const;
 
 const PRESET_USERS = [
-  { id: 'user-alice', name: 'Alice', color: '#6366f1' },
-  { id: 'user-bob', name: 'Bob', color: '#f59e0b' },
-  { id: 'user-carol', name: 'Carol', color: '#10b981' },
-  { id: 'user-david', name: 'David', color: '#3b82f6' },
-  { id: 'user-esha', name: 'Esha', color: '#ec4899' },
+  { id: 'user-alice', name: 'Alice', color: '#0d9488' },
+  { id: 'user-bob', name: 'Bob', color: '#0284c7' },
+  { id: 'user-carol', name: 'Carol', color: '#059669' },
+  { id: 'user-david', name: 'David', color: '#d97706' },
+  { id: 'user-esha', name: 'Esha', color: '#e11d48' },
 ] as const;
 
-const COLOR_OPTIONS = ['#6366f1', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6'];
+const COLOR_OPTIONS = ['#0d9488', '#0284c7', '#059669', '#d97706', '#e11d48', '#7c3aed', '#db2777', '#475569'];
 
 export default function JoinGroup() {
   const { code } = useParams<{ code?: string }>();
   const navigate = useNavigate();
+  const auth = useAuth();
   const setCurrentUser = useGroupStore((s) => s.setCurrentUser);
 
   const [joinCode, setJoinCode] = useState(code ?? '');
-  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState(auth.user?.id ?? '');
   const [isCustom, setIsCustom] = useState(false);
   const [customName, setCustomName] = useState('');
-  const [customColor, setCustomColor] = useState('#8b5cf6');
+  const [customColor, setCustomColor] = useState('#0d9488');
   const [existingUsers, setExistingUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +42,12 @@ export default function JoinGroup() {
       .then(({ users }) => setExistingUsers(users))
       .catch(() => setExistingUsers([]));
   }, []);
+
+  useEffect(() => {
+    if (auth.user) {
+      setSelectedUserId(auth.user.id);
+    }
+  }, [auth.user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,41 +90,42 @@ export default function JoinGroup() {
     }
   }
 
-  // Combine seeded list with any newly created custom users
+  // Combine authenticated user + preset list + custom users
   const userOptions = [
-    ...PRESET_USERS,
+    ...(auth.user ? [{ id: auth.user.id, name: `${auth.user.displayName} (You)`, color: auth.user.avatarColor || '#0d9488' }] : []),
+    ...PRESET_USERS.filter((p) => p.id !== auth.user?.id),
     ...existingUsers
-      .filter((u) => !PRESET_USERS.some((p) => p.id === u.id))
+      .filter((u) => u.id !== auth.user?.id && !PRESET_USERS.some((p) => p.id === u.id))
       .map((u) => ({ id: u.id, name: u.displayName, color: u.avatarColor })),
   ];
 
   const selectedUser = userOptions.find((u) => u.id === selectedUserId);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4 relative">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-950 to-slate-950 pointer-events-none" />
-
-      <div className="w-full max-w-md glass-panel border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
-        <div className="flex items-center justify-between mb-6">
-          <Link to="/" className="text-xs text-slate-500 hover:text-slate-300">
-            ← Back Home
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md enterprise-card p-8 shadow-xl border border-slate-200">
+        <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-3">
+          <Link to="/dashboard" className="text-xs text-slate-500 hover:text-slate-900 font-semibold transition-colors">
+            ← Back to Dashboard
           </Link>
-          <span className="text-xs font-bold text-indigo-400">Join Team Group</span>
+          <span className="text-xs font-bold text-teal-800 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200 uppercase tracking-wider">
+            Join Team Project
+          </span>
         </div>
 
-        <h1 className="text-2xl font-bold text-slate-100 mb-1">Join Group Session</h1>
-        <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-          Enter your team join code and pick your member identity.
+        <h1 className="text-2xl font-extrabold text-slate-900 mb-1">Join Group Session</h1>
+        <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+          Enter your team join code and select your member identity.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Join Code */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Join Code</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">Join Code</label>
             <input
               type="text"
               autoFocus={!code}
-              className="w-full rounded-xl bg-slate-900/80 border border-slate-700/80 text-indigo-300 font-mono text-base tracking-[0.2em] px-4 py-2.5 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-slate-600 shadow-inner"
+              className="w-full rounded-xl bg-white border border-slate-300 text-teal-700 font-mono text-lg font-bold tracking-[0.2em] px-4 py-2.5 uppercase focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 placeholder-slate-400 shadow-sm"
               placeholder="e.g. HACK01"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
@@ -128,41 +137,41 @@ export default function JoinGroup() {
           {/* User Selection */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-semibold text-slate-300">Who are you?</label>
+              <label className="block text-xs font-bold text-slate-700">Who are you?</label>
               <button
                 type="button"
                 onClick={() => {
                   setIsCustom(!isCustom);
                   setSelectedUserId('');
                 }}
-                className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
+                className="text-[11px] text-teal-600 hover:text-teal-700 font-bold cursor-pointer"
               >
-                {isCustom ? '← Pick preset member' : '+ Add new custom member'}
+                {isCustom ? '← Select member' : '+ Add custom member'}
               </button>
             </div>
 
             {isCustom ? (
-              <div className="p-4 bg-slate-900/70 border border-indigo-500/30 rounded-xl space-y-3">
+              <div className="p-4 bg-teal-50/60 border border-teal-200 rounded-xl space-y-3">
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Display Name</label>
+                  <label className="block text-[11px] text-slate-600 font-bold mb-1">Display Name</label>
                   <input
                     type="text"
                     placeholder="e.g. Frank"
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="enterprise-input text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Avatar Color</label>
+                  <label className="block text-[11px] text-slate-600 font-bold mb-1">Avatar Color</label>
                   <div className="flex gap-2">
                     {COLOR_OPTIONS.map((c) => (
                       <button
                         key={c}
                         type="button"
                         onClick={() => setCustomColor(c)}
-                        className={`h-6 w-6 rounded-full transition-transform ${
-                          customColor === c ? 'scale-125 ring-2 ring-white' : 'opacity-70 hover:opacity-100'
+                        className={`h-6 w-6 rounded-full transition-transform cursor-pointer ${
+                          customColor === c ? 'scale-125 ring-2 ring-teal-600 shadow-sm' : 'opacity-70 hover:opacity-100'
                         }`}
                         style={{ backgroundColor: c }}
                       />
@@ -171,17 +180,17 @@ export default function JoinGroup() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                 {userOptions.map((user) => (
                   <button
                     key={user.id}
                     type="button"
                     onClick={() => setSelectedUserId(user.id)}
                     disabled={loading}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all text-xs font-medium ${
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all text-xs font-bold text-left cursor-pointer ${
                       selectedUserId === user.id
-                        ? 'border-indigo-500 bg-indigo-950/80 text-white shadow-md shadow-indigo-500/20'
-                        : 'border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-800/50'
+                        ? 'border-teal-600 bg-teal-600 text-white shadow-md shadow-teal-500/20'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <span
@@ -198,7 +207,7 @@ export default function JoinGroup() {
           </div>
 
           {error && (
-            <p className="text-xs text-red-400 bg-red-950/80 border border-red-800 rounded-lg p-3">
+            <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3 font-medium">
               {error}
             </p>
           )}
@@ -206,7 +215,7 @@ export default function JoinGroup() {
           <button
             type="submit"
             disabled={loading || !joinCode.trim() || (!isCustom && !selectedUserId)}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-600/30"
+            className="w-full py-3 rounded-xl bg-teal-600 hover:bg-teal-700 active:bg-teal-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-teal-500/30 hover:-translate-y-0.5 cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
           >
             {loading
               ? 'Joining Group...'

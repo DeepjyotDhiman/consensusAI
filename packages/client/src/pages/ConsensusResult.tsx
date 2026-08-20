@@ -17,9 +17,9 @@ const LS_KEYS = {
 } as const;
 
 function scoreColor(score: number): string {
-  if (score >= 80) return 'text-emerald-400';
-  if (score >= 60) return 'text-amber-400';
-  return 'text-rose-400';
+  if (score >= 80) return 'text-emerald-600';
+  if (score >= 60) return 'text-amber-600';
+  return 'text-rose-600';
 }
 
 export default function ConsensusResult() {
@@ -73,10 +73,12 @@ export default function ConsensusResult() {
 
   const result = session.consensusResult ?? staticResult;
   const displayMembers = session.members.length > 0 ? session.members : members;
+  const groupName = store.group?.name || 'Group Team';
+  const projectName = result?.recommendation || 'Community Design System';
 
   function generateMarkdownReport(): string {
     if (!result) return '';
-    return `# ConsensusAI Report — ${result.recommendation}
+    return `# Team: ${groupName} | Project: ${projectName} — Consensus AI Report
 
 ## Recommendation Overview
 - **Winning Candidate**: ${result.recommendation} (${result.candidateId})
@@ -104,6 +106,10 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
 `;
   }
 
+  const handleDownloadPDF = () => {
+    window.print();
+  };
+
   async function handleCopyMarkdown() {
     const md = generateMarkdownReport();
     try {
@@ -127,19 +133,19 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <p className="text-slate-500 animate-pulse text-sm">Loading Consensus Report...</p>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-slate-500 animate-pulse text-sm font-medium">Loading Consensus Report...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
-        <div className="glass-panel p-6 rounded-2xl text-center max-w-sm">
-          <p className="text-rose-400 mb-4 text-sm">{error}</p>
-          <Link to={`/group/${groupId}`} className="text-indigo-400 hover:text-indigo-300 text-xs">
-            ← Back to dashboard
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="enterprise-card p-6 rounded-2xl text-center max-w-sm">
+          <p className="text-rose-600 mb-4 text-sm font-medium">{error}</p>
+          <Link to={`/group/${groupId}`} className="text-teal-600 hover:text-teal-700 text-xs font-bold">
+            ← Back to Dashboard
           </Link>
         </div>
       </div>
@@ -148,15 +154,15 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
 
   if (!result) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
-        <div className="glass-panel p-8 rounded-2xl text-center max-w-md space-y-4">
-          <p className="text-slate-200 text-lg font-bold">No Consensus Generated</p>
-          <p className="text-slate-400 text-xs leading-relaxed">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="enterprise-card p-8 text-center max-w-md space-y-4">
+          <p className="text-slate-900 text-lg font-extrabold">No Consensus Generated Yet</p>
+          <p className="text-slate-500 text-xs leading-relaxed">
             At least 2 team members must fill out their preferences to calculate a consensus recommendation.
           </p>
           <Link
             to={`/group/${groupId}`}
-            className="inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
+            className="enterprise-btn-primary inline-block text-xs"
           >
             ← Return to Dashboard
           </Link>
@@ -166,26 +172,32 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Header */}
-      <header className="border-b border-slate-800/80 px-6 py-3.5 flex items-center justify-between glass-panel sticky top-0 z-30">
+      <header className="border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between flex-wrap gap-2.5 bg-white sticky top-0 z-30 shadow-xs">
         <Link
           to={`/group/${groupId}`}
-          className="text-xs text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1"
+          className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1"
         >
           ← Back to Dashboard
         </Link>
 
         <div className="flex items-center gap-3">
           <button
+            onClick={handleDownloadPDF}
+            className="enterprise-btn-dark text-xs py-2 px-4 cursor-pointer flex items-center gap-1.5"
+          >
+            📄 Download Report (PDF)
+          </button>
+          <button
             onClick={handleCopyShareLink}
-            className="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700/80 hover:bg-slate-800/80 transition-colors"
+            className="enterprise-btn-secondary text-xs py-1.5 px-3 cursor-pointer"
           >
             {copiedLink ? '✓ Link Copied' : 'Share Link'}
           </button>
           <button
             onClick={() => setExportOpen(true)}
-            className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-1.5 rounded-lg transition-all shadow-md shadow-indigo-600/20"
+            className="enterprise-btn-primary text-xs py-1.5 px-4 cursor-pointer"
           >
             Export Report
           </button>
@@ -194,23 +206,31 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
 
       {/* Main Body */}
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 flex-1 w-full">
-        {/* Winner Hero Card */}
-        <div className="glass-panel rounded-2xl p-6 border border-slate-800/80 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Printable PDF Header with Team & Project Name */}
+        <div className="text-center pb-3 border-b border-slate-200">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Team: <span className="text-teal-700">{groupName}</span> | Project: <span className="text-indigo-700">{projectName}</span> — Consensus Report
+          </h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            AI-driven project recommendation, role allocation, and team fit breakdown.
+          </p>
+        </div>
 
+        {/* Winner Hero Card */}
+        <div className="enterprise-card rounded-2xl p-6 border border-slate-200 relative overflow-hidden bg-white shadow-sm">
           <div className="flex items-start justify-between gap-4 flex-wrap mb-4 relative z-10">
             <div>
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">
+              <span className="text-[10px] font-extrabold text-teal-800 uppercase tracking-widest bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
                 Recommended Candidate
               </span>
-              <h1 className="text-3xl font-extrabold text-slate-100 mt-2">{result.recommendation}</h1>
-              <span className="inline-block mt-2 text-xs font-mono bg-slate-800/90 text-indigo-300 px-2.5 py-0.5 rounded-full border border-slate-700">
+              <h1 className="text-3xl font-extrabold text-slate-900 mt-2">{result.recommendation}</h1>
+              <span className="inline-block mt-2 text-xs font-mono bg-slate-100 text-teal-800 px-2.5 py-0.5 rounded-full border border-slate-200 font-bold">
                 {result.candidateId}
               </span>
             </div>
 
             <div className="text-right">
-              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Group Score</p>
+              <p className="text-[10px] text-slate-500 uppercase font-extrabold tracking-widest">Group Score</p>
               <span className={`text-5xl font-black tabular-nums ${scoreColor(result.groupScore)}`}>
                 {result.groupScore}%
               </span>
@@ -218,16 +238,16 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
           </div>
 
           {result.runnerUp && (
-            <p className="text-xs text-slate-400 pt-3 border-t border-slate-800/80">
+            <p className="text-xs text-slate-500 pt-3 border-t border-slate-100">
               Runner-up Project Alternative:{' '}
-              <span className="text-slate-200 font-semibold">{result.runnerUp}</span>
+              <span className="text-slate-800 font-extrabold">{result.runnerUp}</span>
             </p>
           )}
         </div>
 
         {/* Member Scores Breakdown */}
-        <div className="glass-panel rounded-2xl p-6 border border-slate-800/80">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+        <div className="enterprise-card rounded-2xl p-6">
+          <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-4">
             Individual Team Member Scores
           </h2>
           <div className="space-y-3">
@@ -245,29 +265,29 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
         </div>
 
         {/* Role Allocation Table */}
-        {Object.keys(result.roleAllocation).length > 0 && (
-          <div className="glass-panel rounded-2xl p-6 border border-slate-800/80">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
-              Assigned Team Roles
-            </h2>
-            <RoleAllocationTable
-              roleAllocation={result.roleAllocation}
-              members={displayMembers}
-            />
-          </div>
-        )}
+        <div className="enterprise-card rounded-2xl p-6">
+          <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-4">
+            Assigned Team Roles
+          </h2>
+          <RoleAllocationTable
+            roleAllocation={result.roleAllocation}
+            members={displayMembers}
+            preferencesMap={session.preferencesMap}
+            projectName={projectName}
+          />
+        </div>
 
         {/* Conflict Analysis */}
-        <div className="glass-panel rounded-2xl p-6 border border-slate-800/80">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+        <div className="enterprise-card rounded-2xl p-6">
+          <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-4">
             Conflict Analysis
           </h2>
           <ConflictPanel conflicts={result.conflicts} />
         </div>
 
         {/* Trade-off Rationale & Explanation */}
-        <div className="glass-panel rounded-2xl p-6 border border-slate-800/80">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+        <div className="enterprise-card rounded-2xl p-6">
+          <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-4">
             Trade-off Rationale & Detailed Explanation
           </h2>
           <ExplanationPanel explanation={result.explanation} />
@@ -276,19 +296,19 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
 
       {/* Export Modal */}
       {exportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="glass-panel rounded-2xl p-6 max-w-2xl w-full border border-indigo-500/20 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-100">Export Consensus Report</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full border border-slate-200 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-extrabold text-slate-900">Export Consensus Report</h3>
               <button
                 onClick={() => setExportOpen(false)}
-                className="text-slate-400 hover:text-slate-200 text-sm font-bold"
+                className="text-slate-400 hover:text-slate-700 text-xs font-bold p-1 h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Copy this Markdown breakdown to present to hackathon judges or paste into your team pitch deck:
             </p>
 
@@ -296,19 +316,19 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
               readOnly
               rows={12}
               value={generateMarkdownReport()}
-              className="w-full rounded-xl bg-slate-900 border border-slate-700/80 text-xs font-mono text-slate-300 p-3 focus:outline-none"
+              className="w-full rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800 p-3 focus:outline-none"
             />
 
             <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setExportOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200"
+                className="enterprise-btn-secondary text-xs py-2 px-4 cursor-pointer"
               >
                 Close
               </button>
               <button
                 onClick={handleCopyMarkdown}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30"
+                className="enterprise-btn-primary text-xs py-2 px-4 cursor-pointer"
               >
                 {copiedMd ? '✓ Copied Markdown!' : 'Copy Markdown'}
               </button>

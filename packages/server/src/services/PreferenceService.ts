@@ -35,17 +35,31 @@ interface UserRow {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+function parseArrayField(input: any): string[] {
+  if (Array.isArray(input)) return input.filter(Boolean).map(String);
+  if (typeof input === "string") {
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String);
+    } catch {
+      /* not JSON string, parse as CSV */
+    }
+    return input.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 function rowToPreference(row: PreferenceRow): Preference {
   return {
     id: row.id,
     groupMemberId: row.group_member_id,
-    skills: JSON.parse(row.skills) as string[],
-    availabilityHours: row.availability_hours,
-    budget: row.budget,
-    interests: JSON.parse(row.interests) as string[],
-    learningGoals: JSON.parse(row.learning_goals) as string[],
-    priorities: JSON.parse(row.priorities) as string[],
-    notes: row.notes,
+    skills: parseArrayField(row.skills),
+    availabilityHours: Number(row.availability_hours) || 0,
+    budget: Number(row.budget) || 0,
+    interests: parseArrayField(row.interests),
+    learningGoals: parseArrayField(row.learning_goals),
+    priorities: parseArrayField(row.priorities),
+    notes: row.notes || "",
     updatedAt: row.updated_at,
   };
 }
@@ -79,7 +93,17 @@ export function upsert(
     notes: "",
   };
 
-  const merged: Preference = { ...base, ...data, groupMemberId };
+  const merged: Preference = {
+    ...base,
+    ...data,
+    skills: parseArrayField(data.skills ?? base.skills),
+    interests: parseArrayField(data.interests ?? base.interests),
+    learningGoals: parseArrayField(data.learningGoals ?? base.learningGoals),
+    priorities: parseArrayField(data.priorities ?? base.priorities),
+    availabilityHours: Number(data.availabilityHours ?? base.availabilityHours) || 0,
+    budget: Number(data.budget ?? base.budget) || 0,
+    groupMemberId,
+  };
 
   db.prepare(
     `INSERT OR REPLACE INTO preferences
