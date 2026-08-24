@@ -90,11 +90,23 @@ export const REAL_WORLD_PROJECT_SKILL_MAP: Record<string, ProjectSkillProfile> =
   },
 };
 
-const PROJECT_DICTIONARY = REAL_WORLD_PROJECT_SKILL_MAP;
+const DEFAULT_PROFILE: ProjectSkillProfile = {
+  projectName: 'Community Design System',
+  requiredSkills: ['React', 'TypeScript', 'UI/UX Design', 'Figma', 'CSS', 'Accessibility'],
+  roleMapping: {
+    react: 'React Component Architect',
+    typescript: 'TypeScript Design System Lead',
+    'ui/ux': 'UI/UX Lead Designer',
+    figma: 'Figma Layout Specialist',
+    css: 'CSS & Design Tokens Engineer',
+    accessibility: 'A11y Compliance Specialist',
+  },
+  defaultRole: 'Design System Contributor',
+};
 
 export function getProjectProfile(projectName?: string): ProjectSkillProfile {
   if (!projectName) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['Community Design System'];
+    return REAL_WORLD_PROJECT_SKILL_MAP['Community Design System'] ?? DEFAULT_PROFILE;
   }
 
   const normInput = normalizeSkill(projectName);
@@ -106,33 +118,33 @@ export function getProjectProfile(projectName?: string): ProjectSkillProfile {
     return normInput === normK || normInput.includes(normK) || normK.includes(normInput);
   });
 
-  if (matchedKey) {
-    return REAL_WORLD_PROJECT_SKILL_MAP[matchedKey];
+  if (matchedKey && REAL_WORLD_PROJECT_SKILL_MAP[matchedKey]) {
+    return REAL_WORLD_PROJECT_SKILL_MAP[matchedKey]!;
   }
 
   // Fuzzy keyword matching for user inputs
   if (normInput.includes('shop') || normInput.includes('store') || normInput.includes('commerce') || normInput.includes('cart')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['E-commerce'];
+    return REAL_WORLD_PROJECT_SKILL_MAP['E-commerce'] ?? DEFAULT_PROFILE;
   }
 
   if (normInput.includes('bot') || normInput.includes('ai') || normInput.includes('chat') || normInput.includes('nlp') || normInput.includes('llm')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['EduBot'];
+    return REAL_WORLD_PROJECT_SKILL_MAP['EduBot'] ?? DEFAULT_PROFILE;
   }
 
   if (normInput.includes('portfolio') || normInput.includes('personal') || normInput.includes('resume')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['Portfolio'];
+    return REAL_WORLD_PROJECT_SKILL_MAP['Portfolio'] ?? DEFAULT_PROFILE;
   }
 
   if (normInput.includes('mobile') || normInput.includes('flutter') || normInput.includes('ios') || normInput.includes('android')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['Mobile App'];
+    return REAL_WORLD_PROJECT_SKILL_MAP['Mobile App'] ?? DEFAULT_PROFILE;
   }
 
   if (normInput.includes('design') || normInput.includes('figma') || normInput.includes('ui') || normInput.includes('ux')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['Design System'];
+    return REAL_WORLD_PROJECT_SKILL_MAP['Design System'] ?? DEFAULT_PROFILE;
   }
 
   if (normInput.includes('saas') || normInput.includes('dashboard') || normInput.includes('cloud') || normInput.includes('next')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['SaaS Platform'];
+    return REAL_WORLD_PROJECT_SKILL_MAP['SaaS Platform'] ?? DEFAULT_PROFILE;
   }
 
   if (normInput.includes('web') || normInput.includes('site') || normInput.includes('frontend')) {
@@ -170,20 +182,23 @@ export function getProjectProfile(projectName?: string): ProjectSkillProfile {
  * that should be treated as interchangeable for role matching and task allocation.
  */
 export const SKILL_ALIAS_GROUPS: string[][] = [
-  ['ui/ux', 'ui design', 'ux design', 'ui', 'ux', 'user interface', 'user experience', 'visual design', 'design system', 'ui/ux design'],
-  ['node.js', 'nodejs', 'node', 'express', 'express.js', 'expressjs', 'backend', 'backend developer'],
-  ['react', 'react native', 'react.js', 'reactjs', 'frontend', 'frontend developer'],
-  ['python', 'python3', 'py', 'django', 'fastapi', 'flask', 'ai model'],
-  ['typescript', 'ts', 'type script'],
-  ['javascript', 'js', 'es6', 'ecmascript'],
-  ['css', 'css3', 'styling', 'tailwind', 'tailwindcss', 'styles', 'css tokens'],
-  ['html', 'html5', 'markup', 'dom'],
-  ['postgresql', 'postgres', 'sql', 'mongodb', 'mongo', 'database', 'db', 'prisma', 'sql/db'],
-  ['flutter', 'dart', 'cross-platform', 'mobile app'],
+  ['ui/ux', 'ui design', 'ux design', 'ui', 'ux', 'user interface', 'user experience', 'visual design', 'design system', 'ui/ux design', 'product design'],
+  ['node.js', 'nodejs', 'node', 'express', 'express.js', 'expressjs', 'backend', 'backend developer', 'api', 'rest api', 'graphql'],
+  ['react', 'react native', 'react.js', 'reactjs', 'frontend', 'frontend developer', 'angular', 'vue', 'vuejs', 'svelte', 'web developer'],
+  ['angular', 'angularjs', 'vue', 'vuejs', 'svelte', 'frontend', 'react', 'typescript'],
+  ['python', 'python3', 'py', 'django', 'fastapi', 'flask', 'ai model', 'backend'],
+  ['go', 'golang', 'rust', 'c++', 'cpp', 'c#', 'java', 'spring', 'backend', 'systems'],
+  ['typescript', 'ts', 'type script', 'javascript', 'js'],
+  ['javascript', 'js', 'es6', 'ecmascript', 'frontend'],
+  ['html', 'html5', 'markup', 'dom', 'web'],
+  ['postgresql', 'postgres', 'sql', 'mongodb', 'mongo', 'database', 'db', 'prisma', 'sql/db', 'mysql', 'nosql', 'sqlite'],
+  ['flutter', 'dart', 'cross-platform', 'mobile app', 'android', 'ios', 'swift', 'kotlin'],
   ['firebase', 'firestore', 'cloud database', 'auth'],
-  ['next.js', 'nextjs', 'next', 'full-stack'],
-  ['figma', 'sketch', 'adobe xd', 'wireframing', 'mockups'],
-  ['nlp', 'ai', 'llm', 'machine learning', 'ml', 'intent classification', 'natural language processing'],
+  ['next.js', 'nextjs', 'next', 'full-stack', 'fullstack'],
+  ['css', 'css3', 'styling', 'tailwind', 'tailwindcss', 'styles', 'css tokens', 'sass', 'scss', 'bootstrap'],
+  ['figma', 'sketch', 'adobe xd', 'wireframing', 'mockups', 'ui/ux'],
+  ['nlp', 'ai', 'llm', 'machine learning', 'ml', 'intent classification', 'natural language processing', 'deep learning', 'data science'],
+  ['docker', 'kubernetes', 'k8s', 'cloud', 'devops', 'aws', 'gcp', 'azure', 'ci/cd', 'linux'],
   ['stripe', 'payments', 'payment', 'checkout', 'billing'],
   ['accessibility', 'a11y', 'wcag'],
 ];
@@ -201,23 +216,31 @@ export function getLevenshteinDistance(a: string, b: string): number {
   if (b.length === 0) return a.length;
 
   const matrix: number[][] = [];
-  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    if (!matrix[0]) matrix[0] = [];
+    matrix[0][j] = j;
+  }
 
   for (let i = 1; i <= b.length; i++) {
+    const row = matrix[i] ?? [];
+    const prevRow = matrix[i - 1] ?? [];
     for (let j = 1; j <= a.length; j++) {
       if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
+        row[j] = prevRow[j - 1] ?? 0;
       } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1      // deletion
+        row[j] = Math.min(
+          (prevRow[j - 1] ?? 0) + 1, // substitution
+          (row[j - 1] ?? 0) + 1,     // insertion
+          (prevRow[j] ?? 0) + 1      // deletion
         );
       }
     }
+    matrix[i] = row;
   }
-  return matrix[b.length][a.length];
+  return matrix[b.length]?.[a.length] ?? 0;
 }
 
 /**

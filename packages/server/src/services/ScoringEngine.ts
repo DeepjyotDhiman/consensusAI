@@ -19,6 +19,67 @@ export interface CandidateScoreResult {
   groupScore: number;
 }
 
+function toArray(val: string[] | string | undefined | null): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.map(String).filter(Boolean);
+  if (typeof val === "string") return val.split(",").map((s) => s.trim()).filter(Boolean);
+  return [];
+}
+
+const COMMON_SKILL_ALIASES: Record<string, string[]> = {
+  "ml": ["machine learning", "ai", "artificial intelligence", "deep learning", "nlp", "llm", "data science"],
+  "machine learning": ["ml", "ai", "artificial intelligence", "deep learning", "nlp", "llm", "data science"],
+  "ai": ["artificial intelligence", "machine learning", "ml", "nlp", "llm", "deep learning", "data science"],
+  "react": ["reactjs", "react.js", "frontend", "web", "angular", "vue", "nextjs", "next.js", "svelte"],
+  "angular": ["frontend", "web", "react", "vue", "typescript", "javascript"],
+  "vue": ["frontend", "web", "react", "angular", "vuejs", "javascript"],
+  "typescript": ["ts", "javascript", "js", "frontend", "backend", "fullstack"],
+  "python": ["py", "python3", "django", "fastapi", "flask", "backend", "data science"],
+  "postgresql": ["postgres", "sql", "psql", "database", "db", "mysql", "mongodb"],
+  "sql": ["postgresql", "postgres", "mysql", "database", "db", "sqlite", "nosql", "mongodb"],
+  "ui design": ["ui", "ux", "figma", "design", "ui/ux", "wireframing", "product design", "adobe xd"],
+  "network security": ["security", "cybersecurity", "infosec", "crypto", "ethical hacking"],
+  "cryptography": ["crypto", "security", "blockchain", "web3"],
+  "css": ["tailwind", "styling", "html/css", "frontend", "sass", "scss", "bootstrap"],
+  "flutter": ["mobile", "dart", "react native", "android", "ios", "crossplatform"],
+  "data analysis": ["data science", "pandas", "numpy", "python", "sql", "analytics", "bi", "tableau"],
+  "data visualization": ["d3", "chartjs", "tableau", "powerbi", "matplotlib", "seaborn", "frontend"],
+  "project management": ["management", "agile", "scrum", "lead", "leadership", "jira"],
+  "linux": ["devops", "systems", "bash", "shell", "docker", "cloud", "unix"],
+};
+
+function normalize(str: string): string {
+  return str.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function skillsMatch(memberSkill: string, requiredSkill: string): boolean {
+  const m = memberSkill.toLowerCase().trim();
+  const r = requiredSkill.toLowerCase().trim();
+  const normM = normalize(m);
+  const normR = normalize(r);
+
+  if (m === r || normM === normR) return true;
+  if (normM.includes(normR) || normR.includes(normM)) return true;
+
+  const aliasesR = COMMON_SKILL_ALIASES[r] || [];
+  if (aliasesR.some((a) => {
+    const normA = normalize(a);
+    return normM === normA || normM.includes(normA) || normA.includes(normM);
+  })) {
+    return true;
+  }
+
+  const aliasesM = COMMON_SKILL_ALIASES[m] || [];
+  if (aliasesM.some((a) => {
+    const normA = normalize(a);
+    return normR === normA || normR.includes(normA) || normA.includes(normR);
+  })) {
+    return true;
+  }
+
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Score a single member against a candidate (0-100)
 // ---------------------------------------------------------------------------
@@ -27,17 +88,21 @@ export function scoreMember(
   member: { preferences: Preference }
 ): MemberScoreBreakdown {
   const prefs = member.preferences;
+  const interests = toArray(prefs.interests);
+  const skills = toArray(prefs.skills);
+  const learningGoals = toArray(prefs.learningGoals);
 
   // Interest match (0-30)
   let interestScore: number;
-  if (prefs.interests.length === 0) {
+  if (interests.length === 0) {
     interestScore = 15; // neutral
   } else {
-    const domainTagsLower = new Set(candidate.domainTags.map((t) => t.toLowerCase()));
-    const matched = prefs.interests.filter((i) =>
-      domainTagsLower.has(i.toLowerCase())
-    ).length;
-    interestScore = (matched / prefs.interests.length) * 30;
+    const domainTagsLower = candidate.domainTags.map((t) => t.toLowerCase());
+    const matched = interests.filter((i: string) => {
+      const iLower = i.toLowerCase();
+      return domainTagsLower.some((dt) => dt.includes(iLower) || iLower.includes(dt));
+    }).length;
+    interestScore = Math.min(30, (matched / interests.length) * 30);
   }
 
   // Skill match (0-25)
@@ -45,9 +110,8 @@ export function scoreMember(
   if (candidate.requiredSkills.length === 0) {
     skillScore = 25;
   } else {
-    const memberSkillsLower = new Set(prefs.skills.map((s) => s.toLowerCase()));
     const matched = candidate.requiredSkills.filter((rs) =>
-      memberSkillsLower.has(rs.toLowerCase())
+      skills.some((ms) => skillsMatch(ms, rs))
     ).length;
     skillScore = (matched / candidate.requiredSkills.length) * 25;
   }
@@ -58,27 +122,28 @@ export function scoreMember(
     availabilityScore = 20;
   } else {
     availabilityScore =
-      Math.min(prefs.availabilityHours / candidate.minHoursPerWeek, 1) * 20;
+      Math.min((prefs.availabilityHours || 0) / candidate.minHoursPerWeek, 1) * 20;
   }
 
   // Budget (0-15)
   let budgetScore: number;
-  if (candidate.costPerMember === 0) {
-    budgetScore = 15;
+  if (candidate.costPerMember === 0 || prefs.budget === null || prefs.budget === undefined) {
+    budgetScore = 15; // No budget constraint or zero cost candidate
   } else {
-    budgetScore = Math.min(prefs.budget / candidate.costPerMember, 1) * 15;
+    budgetScore = Math.min(Number(prefs.budget) / candidate.costPerMember, 1) * 15;
   }
 
   // Learning goal match (0-10)
   let learningScore: number;
-  if (prefs.learningGoals.length === 0) {
+  if (learningGoals.length === 0) {
     learningScore = 5; // neutral
   } else {
-    const domainTagsLower = new Set(candidate.domainTags.map((t) => t.toLowerCase()));
-    const matched = prefs.learningGoals.filter((lg) =>
-      domainTagsLower.has(lg.toLowerCase())
-    ).length;
-    learningScore = (matched / prefs.learningGoals.length) * 10;
+    const domainTagsLower = candidate.domainTags.map((t) => t.toLowerCase());
+    const matched = learningGoals.filter((lg: string) => {
+      const lgLower = lg.toLowerCase();
+      return domainTagsLower.some((dt) => dt.includes(lgLower) || lgLower.includes(dt));
+    }).length;
+    learningScore = Math.min(10, (matched / learningGoals.length) * 10);
   }
 
   const total = Math.round(

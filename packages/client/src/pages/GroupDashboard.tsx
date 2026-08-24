@@ -13,7 +13,8 @@ import ConsensusSummaryPanel from '../components/ConsensusSummaryPanel.tsx';
 import CandidateCatalogModal from '../components/CandidateCatalogModal.tsx';
 import LeaderboardModal from '../components/LeaderboardModal.tsx';
 import NavbarLogo from '../components/NavbarLogo.tsx';
-import type { Preference } from '@consensus/shared';
+import type { Preference, ConsensusOutput } from '@consensus/shared';
+import type { MemberWithDisplay } from '../store/groupStore.ts';
 import { computeTaskAssignments } from '../utils/projectTaskMapper.ts';
 import { triggerConfetti } from '../utils/confetti.ts';
 import { SkeletonTaskAllocation, SkeletonConsensusSummary } from '../components/SkeletonCard.tsx';
@@ -235,108 +236,7 @@ function TargetProjectTaskAllocation({
   );
 }
 
-interface ChatMessageItem {
-  id: string;
-  senderName: string;
-  avatarColor?: string;
-  text: string;
-}
 
-function WorkspaceChat({ members, currentUserId }: { members: MemberWithDisplay[]; currentUserId?: string | null }) {
-  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
-  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
-  const [input, setInput] = useState('');
-
-  const activeSender = members.find((m) => m.id === selectedMemberId || m.userId === currentUserId) || members[0];
-
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !activeSender) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        senderName: activeSender.displayName,
-        avatarColor: activeSender.avatarColor,
-        text: input.trim(),
-      },
-    ]);
-    setInput('');
-  };
-
-  return (
-    <section className="enterprise-card p-4 flex flex-col text-left space-y-3">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-          <span>💬 Workspace Team Discussion</span>
-        </h3>
-        <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-          {members.length} Member{members.length === 1 ? '' : 's'}
-        </span>
-      </div>
-
-      <div className="overflow-y-auto max-h-48 space-y-2 pr-1 text-xs">
-        {messages.length === 0 ? (
-          <p className="text-[11px] text-slate-400 italic text-center py-3">
-            No workspace messages yet. Start chatting with your team!
-          </p>
-        ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className="flex items-start gap-2">
-              <span
-                className="h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 mt-0.5 shadow-xs"
-                style={{ backgroundColor: msg.avatarColor || '#0d9488' }}
-              >
-                {(msg.senderName || '?')[0]}
-              </span>
-              <div>
-                <span className="font-bold text-teal-700 mr-1.5">{msg.senderName || 'Member'}:</span>
-                <span className="text-slate-800 leading-snug">{msg.text}</span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <form onSubmit={handleSend} className="flex flex-col gap-2 pt-1">
-        {members.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-500 font-medium">Sending as:</span>
-            <select
-              value={selectedMemberId || activeSender?.id || ''}
-              onChange={(e) => setSelectedMemberId(e.target.value)}
-              className="bg-white border border-slate-200 text-slate-800 text-[11px] rounded-lg px-2 py-1 focus:outline-none focus:border-teal-500 font-medium cursor-pointer"
-            >
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.displayName} {m.userId === currentUserId ? '(You)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={members.length === 0 ? 'Waiting for team members...' : 'Message team members...'}
-            disabled={members.length === 0}
-            className="flex-1 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-teal-500 disabled:opacity-50 shadow-sm"
-          />
-          <button
-            type="submit"
-            disabled={members.length === 0 || !input.trim()}
-            className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-sm"
-          >
-            Send
-          </button>
-        </div>
-      </form>
-    </section>
-  );
-}
 
 export default function GroupDashboard() {
   const { id: groupId = '' } = useParams<{ id: string }>();
@@ -359,17 +259,19 @@ export default function GroupDashboard() {
     }, 2800);
   }
 
-  // Read identity from localStorage on mount
+  const effectiveUserId = auth.user?.id || store.currentUserId;
+
+  // Read identity from localStorage / auth on mount
   useEffect(() => {
-    const userId = localStorage.getItem(LS_KEYS.userId);
+    const userId = auth.user?.id || localStorage.getItem(LS_KEYS.userId);
     const groupMemberId = localStorage.getItem(LS_KEYS.groupMemberId);
     if (userId && groupMemberId) {
       store.setCurrentUser(userId, groupMemberId);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [auth.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Connect socket (hydrates members + preferencesMap + consensus)
-  const session = useGroupSession(groupId, store.currentUserId ?? '');
+  const session = useGroupSession(groupId, effectiveUserId);
 
   // Fetch group metadata via REST on mount
   useEffect(() => {
@@ -390,22 +292,34 @@ export default function GroupDashboard() {
   function handleBlurSave(groupMemberId: string, prefs: Preference) {
     console.log('[UI Event] Preference auto-save on blur for member:', groupMemberId);
     session.updatePreference(groupMemberId, prefs);
-    showToast('Preferences updated — recalculating consensus...');
   }
 
-  function handleDoneClick(prefs: Preference) {
-    console.log('[UI Click] Form DONE -> Switching view to LIVE_RESULTS');
+  function handleSubmitPrefs(prefs: Preference) {
+    console.log('[UI Click] Member submitting preferences formally');
     if (currentGroupMemberId) {
-      session.updatePreference(currentGroupMemberId, prefs);
+      session.submitPreference(currentGroupMemberId, prefs);
     }
-    handleSwitchToResults();
-    showToast('Form submitted! Viewing real-time consensus results.');
+    showToast('Preferences submitted! Running AI consensus analysis...');
+    setIsCalculating(true);
+    setCurrentView('LIVE_RESULTS');
     setTimeout(() => {
-      window.scrollTo({
-        top: 320,
-        behavior: 'smooth',
-      });
+      setIsCalculating(false);
+      triggerConfetti();
+    }, 2800);
+    setTimeout(() => {
+      window.scrollTo({ top: 320, behavior: 'smooth' });
     }, 50);
+  }
+
+  function handleGenerateConsensus() {
+    if (!currentUserId) return;
+    session.generateConsensus(groupId, currentUserId);
+    setIsCalculating(true);
+    setTimeout(() => {
+      setIsCalculating(false);
+      triggerConfetti();
+    }, 2800);
+    showToast('Generating final consensus for the team...');
   }
 
   function showToast(msg: string) {
@@ -426,25 +340,32 @@ export default function GroupDashboard() {
     }
   }
 
-  function handleSelectMemberToEdit(memberId: string) {
-    console.log('Edit clicked for ID:', memberId);
-    setSelectedGroupMemberId(memberId);
+  function handleSelectMemberToEdit(_memberId: string) {
     setCurrentView('FORM');
   }
 
   function handleRemoveMember(memberId: string) {
     console.log('Remove clicked for ID:', memberId);
     store.removeMember(memberId);
-    if (selectedGroupMemberId === memberId) {
-      setSelectedGroupMemberId(null);
-    }
   }
 
   const { group, groupName, projectName, members, preferencesMap, consensusResult, currentUserId, currentGroupMemberId, connectionStatus } = store;
-  const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string | null>(null);
-  const activeMemberId = selectedGroupMemberId || currentGroupMemberId || (members[0]?.id ?? null);
-  const activeMember = members.find((m) => m.id === activeMemberId);
+
+  // Always edit your own preferences (no member switching)
+  const activeMemberId = currentGroupMemberId || (members.find((m) => m.userId === (auth.user?.id || currentUserId))?.id ?? null);
   const activePreference = activeMemberId ? preferencesMap[activeMemberId] ?? null : null;
+
+  // Submission progress
+  const submittedCount = members.filter((m) => {
+    const pref = preferencesMap[m.id];
+    return pref?.submittedAt != null;
+  }).length;
+  const totalMembers = members.length;
+  const allSubmitted = totalMembers >= 2 && submittedCount === totalMembers;
+
+  // Is the current user the group leader?
+  const currentMember = members.find((m) => m.userId === (auth.user?.id || currentUserId));
+  const isLeader = currentMember?.role === 'leader';
 
   return (
     <div className="min-h-screen app-grid-bg text-slate-900 flex flex-col">
@@ -483,26 +404,24 @@ export default function GroupDashboard() {
                 console.log('[UI Click] Tab 1: Form View clicked');
                 setCurrentView('FORM');
               }}
-              className={`px-3 py-1 rounded-md transition-all duration-200 active:scale-95 cursor-pointer ${
-                currentView === 'FORM'
+              className={`px-3 py-1 rounded-md transition-all duration-200 active:scale-95 cursor-pointer ${currentView === 'FORM'
                   ? 'bg-teal-600 text-white shadow-sm font-bold'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
-              1. Form View
+              Form View
             </button>
             <button
               onClick={() => {
                 console.log('[UI Click] Tab 2: Live Results View clicked');
                 handleSwitchToResults();
               }}
-              className={`px-3 py-1 rounded-md transition-all duration-200 active:scale-95 cursor-pointer ${
-                currentView === 'LIVE_RESULTS'
+              className={`px-3 py-1 rounded-md transition-all duration-200 active:scale-95 cursor-pointer ${currentView === 'LIVE_RESULTS'
                   ? 'bg-teal-600 text-white shadow-sm font-bold'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
-              2. Live Results View
+              Live Results View
             </button>
           </div>
 
@@ -546,16 +465,39 @@ export default function GroupDashboard() {
       <div className="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-6">
         {/* Explicit Active Project Context Banner */}
         {group && (
-          <div className="bg-teal-50 border border-teal-200 p-3.5 rounded-xl flex items-center justify-between text-xs shadow-sm">
+          <div className="bg-teal-50 border border-teal-200 p-3.5 rounded-xl flex items-center justify-between text-xs shadow-sm flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-teal-600 animate-ping" />
               <span className="font-bold text-teal-950">
-                Active Project Scope: <strong className="text-teal-900 font-extrabold">{group.name}</strong> (Join Code: <span className="font-mono text-teal-700 font-bold">{group.joinCode}</span>)
+                Group: <strong className="text-teal-900 font-extrabold">{group.name}</strong>
+                {' '}· Join Code: <span className="font-mono text-teal-700 font-bold">{group.joinCode}</span>
+                {isLeader && (
+                  <span className="ml-2 text-[10px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    👑 Leader
+                  </span>
+                )}
               </span>
             </div>
-            <span className="text-[11px] text-teal-700 font-medium hidden sm:inline">
-              ✓ All team members added below are explicitly bound to this project
-            </span>
+
+            {/* Member submission progress bar */}
+            {totalMembers > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-teal-700 font-semibold">
+                  {submittedCount}/{totalMembers} submitted
+                </span>
+                <div className="w-24 h-2 bg-teal-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-teal-600 rounded-full transition-all duration-500"
+                    style={{ width: `${totalMembers > 0 ? (submittedCount / totalMembers) * 100 : 0}%` }}
+                  />
+                </div>
+                {allSubmitted && (
+                  <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    ✓ All Ready!
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -639,8 +581,7 @@ export default function GroupDashboard() {
                 </div>
               </section>
 
-              {/* Workspace Team Chat Panel */}
-              <WorkspaceChat members={members} currentUserId={currentUserId} />
+              {/* NOTE: Chat removed — was local state only (no realtime). Use a dedicated tool. */}
             </div>
 
             {/* Right Main Column: Preference Form */}
@@ -651,15 +592,8 @@ export default function GroupDashboard() {
                     <PreferenceForm
                       groupMemberId={activeMemberId}
                       initialValues={activePreference}
-                      members={members.map((m) => ({
-                        id: m.id,
-                        userId: m.userId,
-                        displayName: m.displayName,
-                        avatarColor: m.avatarColor,
-                      }))}
-                      onSelectMember={handleSelectMemberToEdit}
                       onBlurSave={handleBlurSave}
-                      onDone={handleDoneClick}
+                      onSubmitPrefs={handleSubmitPrefs}
                     />
                   </ErrorBoundary>
                 </section>
@@ -715,6 +649,37 @@ export default function GroupDashboard() {
               </div>
             ) : (
               <>
+                {/* Leader: Generate Final Consensus button */}
+                {isLeader && !consensusResult && (
+                  <div className="enterprise-card p-5 border-2 border-teal-300 bg-teal-50 flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-teal-900">Ready to generate the group recommendation?</h3>
+                      <p className="text-xs text-teal-700 mt-0.5">
+                        {submittedCount < 2
+                          ? `At least 2 members must submit. Currently: ${submittedCount}/${totalMembers}.`
+                          : `${submittedCount}/${totalMembers} members have submitted. Click to generate.`}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleGenerateConsensus}
+                      disabled={submittedCount < 2}
+                      className="enterprise-btn-primary py-2.5 px-5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🤖 Generate Final Consensus
+                    </button>
+                  </div>
+                )}
+                {isLeader && consensusResult && (
+                  <div className="enterprise-card p-4 border border-emerald-200 bg-emerald-50 flex items-center justify-between flex-wrap gap-3">
+                    <span className="text-xs font-bold text-emerald-800">✓ Consensus generated. You can regenerate after members update their preferences.</span>
+                    <button
+                      onClick={handleGenerateConsensus}
+                      className="text-xs text-emerald-700 hover:text-emerald-900 font-bold underline cursor-pointer"
+                    >
+                      Regenerate
+                    </button>
+                  </div>
+                )}
                 {/* Dynamic Target Project & Task Allocation Banner */}
                 <TargetProjectTaskAllocation
                   consensusResult={consensusResult}

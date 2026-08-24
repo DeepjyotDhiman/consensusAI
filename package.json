@@ -12,7 +12,8 @@
     "build": "pnpm --filter @consensus/shared build && pnpm --filter @consensus/server build && pnpm --filter @consensus/client build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm --filter @consensus/server test",
-    "seed": "pnpm --filter @consensus/server seed"
+    "seed": "pnpm --filter @consensus/server seed",
+    "reset": "pnpm --filter @consensus/server seed"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

@@ -1,17 +1,59 @@
+function toArray(val) {
+    if (!val)
+        return [];
+    if (Array.isArray(val))
+        return val.map(String).filter(Boolean);
+    if (typeof val === "string")
+        return val.split(",").map((s) => s.trim()).filter(Boolean);
+    return [];
+}
+const COMMON_SKILL_ALIASES = {
+    "ml": ["machine learning", "ai", "artificial intelligence"],
+    "machine learning": ["ml", "ai", "artificial intelligence"],
+    "ai": ["artificial intelligence", "machine learning", "ml"],
+    "react": ["reactjs", "react.js", "frontend"],
+    "typescript": ["ts", "javascript", "js"],
+    "python": ["py", "python3"],
+    "postgresql": ["postgres", "sql", "psql"],
+    "sql": ["postgresql", "postgres", "mysql", "database"],
+    "ui design": ["ui", "ux", "figma", "design", "ui/ux"],
+    "network security": ["security", "cybersecurity", "infosec"],
+    "cryptography": ["crypto", "security"],
+    "css": ["tailwind", "styling", "html/css", "frontend"],
+};
+function skillsMatch(memberSkill, requiredSkill) {
+    const m = memberSkill.toLowerCase().trim();
+    const r = requiredSkill.toLowerCase().trim();
+    if (m === r)
+        return true;
+    if (m.includes(r) || r.includes(m))
+        return true;
+    const aliases = COMMON_SKILL_ALIASES[r] || [];
+    if (aliases.includes(m) || aliases.some((a) => m.includes(a) || a.includes(m))) {
+        return true;
+    }
+    return false;
+}
 // ---------------------------------------------------------------------------
 // Score a single member against a candidate (0-100)
 // ---------------------------------------------------------------------------
 export function scoreMember(candidate, member) {
     const prefs = member.preferences;
+    const interests = toArray(prefs.interests);
+    const skills = toArray(prefs.skills);
+    const learningGoals = toArray(prefs.learningGoals);
     // Interest match (0-30)
     let interestScore;
-    if (prefs.interests.length === 0) {
+    if (interests.length === 0) {
         interestScore = 15; // neutral
     }
     else {
-        const domainTagsLower = new Set(candidate.domainTags.map((t) => t.toLowerCase()));
-        const matched = prefs.interests.filter((i) => domainTagsLower.has(i.toLowerCase())).length;
-        interestScore = (matched / prefs.interests.length) * 30;
+        const domainTagsLower = candidate.domainTags.map((t) => t.toLowerCase());
+        const matched = interests.filter((i) => {
+            const iLower = i.toLowerCase();
+            return domainTagsLower.some((dt) => dt.includes(iLower) || iLower.includes(dt));
+        }).length;
+        interestScore = Math.min(30, (matched / interests.length) * 30);
     }
     // Skill match (0-25)
     let skillScore;
@@ -19,8 +61,7 @@ export function scoreMember(candidate, member) {
         skillScore = 25;
     }
     else {
-        const memberSkillsLower = new Set(prefs.skills.map((s) => s.toLowerCase()));
-        const matched = candidate.requiredSkills.filter((rs) => memberSkillsLower.has(rs.toLowerCase())).length;
+        const matched = candidate.requiredSkills.filter((rs) => skills.some((ms) => skillsMatch(ms, rs))).length;
         skillScore = (matched / candidate.requiredSkills.length) * 25;
     }
     // Availability (0-20)
@@ -30,25 +71,28 @@ export function scoreMember(candidate, member) {
     }
     else {
         availabilityScore =
-            Math.min(prefs.availabilityHours / candidate.minHoursPerWeek, 1) * 20;
+            Math.min((prefs.availabilityHours || 0) / candidate.minHoursPerWeek, 1) * 20;
     }
     // Budget (0-15)
     let budgetScore;
-    if (candidate.costPerMember === 0) {
-        budgetScore = 15;
+    if (candidate.costPerMember === 0 || prefs.budget === null || prefs.budget === undefined) {
+        budgetScore = 15; // No budget constraint or zero cost candidate
     }
     else {
-        budgetScore = Math.min(prefs.budget / candidate.costPerMember, 1) * 15;
+        budgetScore = Math.min(Number(prefs.budget) / candidate.costPerMember, 1) * 15;
     }
     // Learning goal match (0-10)
     let learningScore;
-    if (prefs.learningGoals.length === 0) {
+    if (learningGoals.length === 0) {
         learningScore = 5; // neutral
     }
     else {
-        const domainTagsLower = new Set(candidate.domainTags.map((t) => t.toLowerCase()));
-        const matched = prefs.learningGoals.filter((lg) => domainTagsLower.has(lg.toLowerCase())).length;
-        learningScore = (matched / prefs.learningGoals.length) * 10;
+        const domainTagsLower = candidate.domainTags.map((t) => t.toLowerCase());
+        const matched = learningGoals.filter((lg) => {
+            const lgLower = lg.toLowerCase();
+            return domainTagsLower.some((dt) => dt.includes(lgLower) || lgLower.includes(dt));
+        }).length;
+        learningScore = Math.min(10, (matched / learningGoals.length) * 10);
     }
     const total = Math.round(interestScore + skillScore + availabilityScore + budgetScore + learningScore);
     return {

@@ -21,9 +21,11 @@ export default function CreateGroup() {
     setError(null);
     try {
       const result = await groupApi.createGroup(name.trim());
-      const { group, joinCode } = result;
+      const { group, member } = result;
+      // Store creator identity
       localStorage.setItem(LS_KEYS.groupId, group.id);
-      setCreated({ groupId: group.id, joinCode });
+      localStorage.setItem('consensus_groupMemberId', member.id);
+      setCreated({ groupId: group.id, joinCode: group.joinCode });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create group');
     } finally {

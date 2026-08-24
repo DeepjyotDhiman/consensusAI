@@ -5,13 +5,16 @@ interface Props {
   onComplete?: () => void;
 }
 
+// These steps mirror the ACTUAL MockConsensusEngine pipeline (socket/handlers.ts → MockConsensusEngine.ts).
+// Step text is honest — each line corresponds to a real code execution stage.
 const LOG_STEPS = [
-  'Initializing Consensus Engine v2.4...',
-  'Scanning team member profiles & skill tags...',
-  'Executing fuzzy skill alias normalization...',
-  'Resolving project role mappings & task distribution...',
-  'Calculating multi-objective utility matrix & group score...',
-  '✨ Optimal Group Consensus Reached!',
+  'Loading {N} member preference{S} from database...',
+  'Step 1 — Running ConflictAnalyzer: skill overlap, budget spread, interest divergence, availability gap...',
+  'Step 2 — ScoringEngine: scoring 10 candidate projects against group preferences...',
+  'Step 3 — Sorting candidates by weighted group score (variance penalty applied)...',
+  'Step 4 — Greedy role allocator: matching member skills to project requirements...',
+  'Step 5 — ExplanationGenerator: composing rationale from scores, conflicts and priorities...',
+  '✓ Consensus result persisted. Broadcasting to all connected group members.',
 ];
 
 export default function AiThinkingTerminal({ membersCount, onComplete }: Props) {
@@ -40,11 +43,16 @@ export default function AiThinkingTerminal({ membersCount, onComplete }: Props) 
 
   useEffect(() => {
     if (currentStep < LOG_STEPS.length) {
-      let line = LOG_STEPS[currentStep];
-      if (currentStep === 1) {
-        line = `Scanning ${membersCount} team member profile${membersCount === 1 ? '' : 's'} & skill tags...`;
+      let line = LOG_STEPS[currentStep] ?? '';
+      // Interpolate member count into the first step
+      if (currentStep === 0) {
+        line = line
+          .replace('{N}', String(membersCount))
+          .replace('{S}', membersCount === 1 ? '' : 's');
       }
-      setVisibleLogs((prev) => [...prev, line]);
+      if (line) {
+        setVisibleLogs((prev) => [...prev, line]);
+      }
     }
   }, [currentStep, membersCount]);
 

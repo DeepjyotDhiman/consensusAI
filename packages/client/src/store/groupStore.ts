@@ -6,6 +6,7 @@ export interface MemberWithDisplay {
   id: string;           // groupMemberId
   groupId: string;
   userId: string;
+  role: 'leader' | 'member';
   displayName: string;
   avatarColor: string;
   joinedAt: number;
@@ -48,7 +49,7 @@ const initialState = {
   consensusResult: null,
   connectionStatus: 'disconnected' as ConnectionStatus,
   currentUserId: null,
-  currentGroupMemberId: null
+  currentGroupMemberId: null,
 };
 
 export const useGroupStore = create<GroupState>((set) => ({
@@ -71,11 +72,11 @@ export const useGroupStore = create<GroupState>((set) => ({
     }),
   setPreference: (groupMemberId, preference) =>
     set((state) => ({
-      preferencesMap: { ...state.preferencesMap, [groupMemberId]: preference }
+      preferencesMap: { ...state.preferencesMap, [groupMemberId]: preference },
     })),
   setConsensusResult: (result) => set({ consensusResult: result }),
   setConnectionStatus: (status) => set({ connectionStatus: status }),
   setCurrentUser: (userId, groupMemberId) =>
     set({ currentUserId: userId, currentGroupMemberId: groupMemberId }),
-  reset: () => set(initialState)
+  reset: () => set(initialState),
 }));

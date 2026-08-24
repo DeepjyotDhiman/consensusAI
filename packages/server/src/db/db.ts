@@ -33,16 +33,36 @@ try {
 try {
   sqlDb.exec("ALTER TABLE groups ADD COLUMN user_id TEXT;");
 } catch {}
+// Migration: member_breakdowns sub-score column (schema.sql now includes this, migration kept for existing DBs)
+try {
+  sqlDb.exec("ALTER TABLE consensus_results ADD COLUMN member_breakdowns TEXT NOT NULL DEFAULT '{}';");
+} catch {}
+// Migration: role column on group_members (leader/member distinction)
+try {
+  sqlDb.exec("ALTER TABLE group_members ADD COLUMN role TEXT NOT NULL DEFAULT 'member';");
+} catch {}
+// Migration: submitted_at on preferences (formal submission timestamp)
+try {
+  sqlDb.exec("ALTER TABLE preferences ADD COLUMN submitted_at INTEGER DEFAULT NULL;");
+} catch {}
+// Migration: make budget nullable (was NOT NULL DEFAULT 0)
+// SQLite does not support DROP NOT NULL; we tolerate the old constraint — zero is treated as null in scoring
+try {
+  sqlDb.exec("ALTER TABLE preferences ADD COLUMN _budget_nullable_sentinel INTEGER DEFAULT NULL;");
+  sqlDb.exec("DROP TABLE IF EXISTS _budget_nullable_sentinel;"); // clean up if it ran twice
+} catch {}
 
 saveDb();
 
 function saveDb() {
+  if (DB_PATH === ":memory:") return; // tests use in-memory DB — nothing to save
   try {
     const data = sqlDb.export();
     const buffer = Buffer.from(data);
     writeFileSync(DB_PATH, buffer);
   } catch (err) {
-    // Ignore save errors during transient operations
+    // Log persistence failures — silent data loss is worse than a noisy log
+    console.error("[DB] Failed to persist database to disk:", err instanceof Error ? err.message : err);
   }
 }
 
@@ -114,8 +134,12 @@ class Statement {
 }
 
 class DatabaseWrapper {
-  public prepare<TParams = any, TResult = any>(sql: string) {
-    return new Statement(sql) as any;
+  public prepare<TParams extends any[] = any[], TResult = any>(sql: string): {
+    run: (...args: any[]) => { changes: number; lastInsertRowid: number };
+    get: (...args: any[]) => TResult | undefined;
+    all: (...args: any[]) => TResult[];
+  } {
+    return new Statement(sql);
   }
 
   public exec(sql: string) {

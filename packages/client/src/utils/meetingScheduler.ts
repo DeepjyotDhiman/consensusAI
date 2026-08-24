@@ -68,9 +68,11 @@ export function calculateBestMeetingTime(
         (p) => p.id.toLowerCase() === slot.toLowerCase() || p.label.toLowerCase().includes(slot.toLowerCase())
       );
       const slotKey = matched ? matched.id : 'Afternoon';
-      slotCounts[slotKey] = (slotCounts[slotKey] || 0) + 1;
-      if (!slotParticipants[slotKey].includes(member.displayName)) {
-        slotParticipants[slotKey].push(member.displayName);
+      slotCounts[slotKey] = (slotCounts[slotKey] ?? 0) + 1;
+      const currentParticipants = slotParticipants[slotKey] ?? [];
+      if (!currentParticipants.includes(member.displayName)) {
+        currentParticipants.push(member.displayName);
+        slotParticipants[slotKey] = currentParticipants;
       }
     });
   });
@@ -88,9 +90,10 @@ export function calculateBestMeetingTime(
 
   const overlapCount = maxCount > 0 ? maxCount : members.length;
   const matchPercentage = Math.round((overlapCount / members.length) * 100);
+  const bestSlotParticipants = slotParticipants[bestSlot];
   const participants =
-    slotParticipants[bestSlot] && slotParticipants[bestSlot].length > 0
-      ? slotParticipants[bestSlot]
+    bestSlotParticipants && bestSlotParticipants.length > 0
+      ? bestSlotParticipants
       : members.map((m) => m.displayName);
 
   const matchedPreset = MEETING_TIME_PRESETS.find((p) => p.id === bestSlot);

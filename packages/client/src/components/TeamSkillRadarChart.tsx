@@ -13,11 +13,11 @@ interface DomainScore {
 }
 
 const DOMAIN_RULES: { name: string; keywords: string[] }[] = [
-  { name: 'Frontend', keywords: ['react', 'next.js', 'nextjs', 'typescript', 'javascript', 'html', 'css', 'tailwind', 'ui'] },
-  { name: 'Backend', keywords: ['node.js', 'nodejs', 'node', 'express', 'python', 'fastapi', 'go', 'api', 'java', 'c#'] },
-  { name: 'AI / ML', keywords: ['nlp', 'ai', 'machine learning', 'python', 'fastapi', 'llm', 'pytorch', 'tensorflow'] },
-  { name: 'UI/UX Design', keywords: ['figma', 'ui design', 'ux design', 'ui/ux', 'design', 'wireframing', 'tailwind', 'css'] },
-  { name: 'Database & Cloud', keywords: ['sql', 'postgresql', 'mongodb', 'docker', 'firebase', 'aws', 'gcp', 'prisma', 'git'] },
+  { name: 'Frontend', keywords: ['react', 'next.js', 'nextjs', 'typescript', 'javascript', 'html', 'css', 'tailwind', 'ui', 'angular', 'vue', 'vuejs', 'svelte', 'web', 'frontend', 'bootstrap', 'sass'] },
+  { name: 'Backend', keywords: ['node.js', 'nodejs', 'node', 'express', 'python', 'fastapi', 'django', 'flask', 'go', 'golang', 'rust', 'api', 'java', 'spring', 'c#', 'c++', 'cpp', 'backend', 'graphql', 'rest'] },
+  { name: 'AI / ML', keywords: ['nlp', 'ai', 'machine learning', 'ml', 'python', 'fastapi', 'llm', 'pytorch', 'tensorflow', 'keras', 'data science', 'deep learning', 'pandas', 'numpy', 'opencv'] },
+  { name: 'UI/UX Design', keywords: ['figma', 'ui design', 'ux design', 'ui/ux', 'design', 'wireframing', 'tailwind', 'css', 'sketch', 'adobe xd', 'prototype', 'product design'] },
+  { name: 'Database & Cloud', keywords: ['sql', 'postgresql', 'postgres', 'mongodb', 'docker', 'kubernetes', 'k8s', 'firebase', 'aws', 'gcp', 'azure', 'prisma', 'git', 'devops', 'cloud', 'ci/cd', 'linux'] },
 ];
 
 function normalize(str: string): string {
@@ -31,8 +31,11 @@ export default function TeamSkillRadarChart({ members, preferencesMap = {} }: Pr
     members.forEach((m) => {
       const pref = preferencesMap[m.id];
       if (pref) {
-        if (Array.isArray(pref.topSkills)) allSkills.push(...pref.topSkills);
+        if (Array.isArray(pref.skills)) allSkills.push(...pref.skills);
+        else if (typeof pref.skills === 'string') allSkills.push(...pref.skills.split(',').map((s) => s.trim()).filter(Boolean));
+
         if (Array.isArray(pref.interests)) allSkills.push(...pref.interests);
+        else if (typeof pref.interests === 'string') allSkills.push(...pref.interests.split(',').map((s) => s.trim()).filter(Boolean));
       }
     });
 

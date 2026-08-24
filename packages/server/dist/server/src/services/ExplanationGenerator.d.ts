@@ -7,6 +7,7 @@ export interface ExplanationInput {
     groupScore: number;
     roleAllocation: Record<string, string>;
     conflicts: Conflict[];
+    priorities?: Record<string, string[]>;
 }
 export declare function generate(output: ExplanationInput, members: Array<{
     userId: string;

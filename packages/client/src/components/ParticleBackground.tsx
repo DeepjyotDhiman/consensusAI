@@ -23,6 +23,7 @@ export default function ParticleBackground() {
 
     // Particle nodes array
     const particlesCount = Math.min(Math.floor(window.innerWidth / 20), 60);
+    const particleColors = ['#818cf8', '#c084fc', '#38bdf8', '#34d399'];
     const particles = Array.from({ length: particlesCount }).map(() => ({
       x: Math.random() * width,
       y: Math.random() * height,
@@ -30,7 +31,7 @@ export default function ParticleBackground() {
       vx: (Math.random() - 0.5) * 0.4,
       vy: (Math.random() - 0.5) * 0.4,
       radius: Math.random() * 2 + 1,
-      color: ['#818cf8', '#c084fc', '#38bdf8', '#34d399'][Math.floor(Math.random() * 4)],
+      color: particleColors[Math.floor(Math.random() * particleColors.length)] ?? '#818cf8',
     }));
 
     let mouseX = width / 2;
@@ -64,15 +65,19 @@ export default function ParticleBackground() {
 
       // Draw particle connections
       for (let i = 0; i < particles.length; i++) {
+        const pi = particles[i];
+        if (!pi) continue;
         for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
+          const pj = particles[j];
+          if (!pj) continue;
+          const dx = pi.x - pj.x;
+          const dy = pi.y - pj.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < 130) {
             ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.moveTo(pi.x, pi.y);
+            ctx.lineTo(pj.x, pj.y);
             const alpha = (1 - dist / 130) * 0.25;
             ctx.strokeStyle = `rgba(147, 197, 253, ${alpha})`;
             ctx.lineWidth = 0.8;

@@ -15,11 +15,44 @@ import { CANDIDATES } from "../data/candidates.js";
 import * as ConflictAnalyzer from "../services/ConflictAnalyzer.js";
 import * as ScoringEngine from "../services/ScoringEngine.js";
 import * as ExplanationGenerator from "../services/ExplanationGenerator.js";
+// ---------------------------------------------------------------------------
+// Skill → Human-readable role title
+// Covers every requiredSkill that appears across all 10 candidates.
+// ---------------------------------------------------------------------------
+const SKILL_TO_ROLE_TITLE = {
+    "Machine Learning": "ML Engineer & Model Lead",
+    "Python": "Python Backend Developer",
+    "Data Analysis": "Data Analyst",
+    "React": "Frontend React Lead",
+    "TypeScript": "TypeScript Engineer",
+    "CSS": "UI/CSS Specialist",
+    "UI Design": "UI/UX Designer",
+    "Network Security": "Security Engineer",
+    "Cryptography": "Cryptography Specialist",
+    "SQL": "Database & SQL Engineer",
+    "Data Visualization": "Data Visualisation Engineer",
+    "PostgreSQL": "Database Engineer",
+    "Project Management": "Project Manager",
+    "Community Outreach": "Community & Outreach Lead",
+    "Linux": "Systems & Linux Engineer",
+};
+/** Returns a professional role title for a required skill, or the skill name itself as fallback. */
+function toRoleTitle(skill) {
+    return SKILL_TO_ROLE_TITLE[skill] ?? skill;
+}
 export class MockConsensusEngine {
     async generateConsensus(input) {
         // Filter members that have preferences with meaningful data
-        const membersWithPrefs = input.members.filter((m) => m.preferences != null &&
-            (m.preferences.skills.length > 0 || m.preferences.availabilityHours > 0));
+        const membersWithPrefs = input.members.filter((m) => {
+            if (!m.preferences)
+                return false;
+            const skillsCount = Array.isArray(m.preferences.skills)
+                ? m.preferences.skills.length
+                : typeof m.preferences.skills === "string"
+                    ? m.preferences.skills.trim().length
+                    : 0;
+            return skillsCount > 0 || m.preferences.availabilityHours > 0;
+        });
         // Edge case: need at least 2 members with preferences
         if (membersWithPrefs.length < 2) {
             throw new Error("At least 2 members must have preferences to generate consensus");
@@ -40,6 +73,7 @@ export class MockConsensusEngine {
             return {
                 candidate,
                 memberScores: result.memberScores,
+                memberBreakdowns: result.memberBreakdowns,
                 groupScore: result.groupScore,
             };
         });
@@ -64,7 +98,12 @@ export class MockConsensusEngine {
             for (const member of membersWithPrefs) {
                 if (assigned.has(member.userId))
                     continue;
-                const skillScore = member.preferences.skills.filter((s) => s.toLowerCase().includes(skill.toLowerCase()) ||
+                const memberSkills = Array.isArray(member.preferences.skills)
+                    ? member.preferences.skills
+                    : typeof member.preferences.skills === "string"
+                        ? member.preferences.skills.split(",").map((s) => s.trim()).filter(Boolean)
+                        : [];
+                const skillScore = memberSkills.filter((s) => s.toLowerCase().includes(skill.toLowerCase()) ||
                     skill.toLowerCase().includes(s.toLowerCase())).length;
                 if (skillScore > bestScore) {
                     bestScore = skillScore;
@@ -72,16 +111,28 @@ export class MockConsensusEngine {
                 }
             }
             if (bestMember !== null) {
-                roleAllocation[bestMember] = skill;
+                roleAllocation[bestMember] = toRoleTitle(skill);
                 assigned.add(bestMember);
             }
             else {
-                roleAllocation["Unassigned"] = skill;
+                roleAllocation["Unassigned"] = toRoleTitle(skill);
             }
         }
         // -------------------------------------------------------------------------
         // Step 5: Generate explanation
         // -------------------------------------------------------------------------
+        // Collect priorities map for enriched explanation text (no score effect)
+        const prioritiesMap = {};
+        for (const member of membersWithPrefs) {
+            const prioRaw = member.preferences.priorities;
+            const prioArr = Array.isArray(prioRaw)
+                ? prioRaw
+                : typeof prioRaw === "string"
+                    ? prioRaw.split(",").map((s) => s.trim()).filter(Boolean)
+                    : [];
+            if (prioArr.length > 0)
+                prioritiesMap[member.userId] = prioArr;
+        }
         const partialOutput = {
             recommendation: winner.candidate.title,
             runnerUp: runnerUp?.candidate.title ?? "None",
@@ -90,6 +141,7 @@ export class MockConsensusEngine {
             groupScore: Math.round(winner.groupScore),
             roleAllocation,
             conflicts,
+            ...(Object.keys(prioritiesMap).length > 0 && { priorities: prioritiesMap }),
         };
         const explanation = ExplanationGenerator.generate(partialOutput, membersWithPrefs);
         // -------------------------------------------------------------------------
@@ -100,6 +152,7 @@ export class MockConsensusEngine {
             candidateId: winner.candidate.id,
             roleAllocation,
             memberScores: winner.memberScores,
+            memberBreakdowns: winner.memberBreakdowns,
             groupScore: Math.round(winner.groupScore),
             conflicts,
             explanation,

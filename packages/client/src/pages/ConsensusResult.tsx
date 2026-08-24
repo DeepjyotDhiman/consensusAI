@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { groupApi } from '../api/groupApi.ts';
 import { useGroupStore } from '../store/groupStore.ts';
+import { useAuth } from '../context/AuthContext.tsx';
 import { useGroupSession } from '../hooks/useGroupSession.ts';
 import type { ConsensusOutput } from '@consensus/shared';
 import type { MemberWithDisplay } from '../store/groupStore.ts';
@@ -25,6 +26,7 @@ function scoreColor(score: number): string {
 export default function ConsensusResult() {
   const { id: groupId = '' } = useParams<{ id: string }>();
   const store = useGroupStore();
+  const auth = useAuth();
 
   const [staticResult, setStaticResult] = useState<ConsensusOutput | null>(null);
   const [members, setMembers] = useState<MemberWithDisplay[]>([]);
@@ -34,17 +36,19 @@ export default function ConsensusResult() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedMd, setCopiedMd] = useState(false);
 
-  // Read identity from localStorage
+  const effectiveUserId = auth.user?.id || store.currentUserId;
+
+  // Read identity from localStorage / auth
   useEffect(() => {
-    const userId = localStorage.getItem(LS_KEYS.userId);
+    const userId = auth.user?.id || localStorage.getItem(LS_KEYS.userId);
     const groupMemberId = localStorage.getItem(LS_KEYS.groupMemberId);
     if (userId && groupMemberId) {
       store.setCurrentUser(userId, groupMemberId);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [auth.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Socket session for live updates
-  const session = useGroupSession(groupId, store.currentUserId ?? '');
+  const session = useGroupSession(groupId, effectiveUserId);
 
   // REST load fallback
   useEffect(() => {
@@ -60,6 +64,7 @@ export default function ConsensusResult() {
           id: m.id,
           groupId: groupData.group.id,
           userId: m.userId,
+          role: m.role || 'member',
           displayName: m.displayName,
           avatarColor: m.avatarColor,
           joinedAt: m.joinedAt,
@@ -106,8 +111,16 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
 `;
   }
 
-  const handleDownloadPDF = () => {
-    window.print();
+  const handleDownloadReport = () => {
+    const md = generateMarkdownReport();
+    if (!md) return;
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `consensus-report-${groupName.replace(/\s+/g, '-').toLowerCase()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   async function handleCopyMarkdown() {
@@ -184,10 +197,10 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
 
         <div className="flex items-center gap-3">
           <button
-            onClick={handleDownloadPDF}
+            onClick={handleDownloadReport}
             className="enterprise-btn-dark text-xs py-2 px-4 cursor-pointer flex items-center gap-1.5"
           >
-            📄 Download Report (PDF)
+            📅 Download Report (.md)
           </button>
           <button
             onClick={handleCopyShareLink}
@@ -199,7 +212,7 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
             onClick={() => setExportOpen(true)}
             className="enterprise-btn-primary text-xs py-1.5 px-4 cursor-pointer"
           >
-            Export Report
+            Copy Markdown Report
           </button>
         </div>
       </header>
@@ -221,7 +234,7 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
           <div className="flex items-start justify-between gap-4 flex-wrap mb-4 relative z-10">
             <div>
               <span className="text-[10px] font-extrabold text-teal-800 uppercase tracking-widest bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                Recommended Candidate
+                Recommended Project
               </span>
               <h1 className="text-3xl font-extrabold text-slate-900 mt-2">{result.recommendation}</h1>
               <span className="inline-block mt-2 text-xs font-mono bg-slate-100 text-teal-800 px-2.5 py-0.5 rounded-full border border-slate-200 font-bold">
@@ -250,15 +263,31 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
           <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-4">
             Individual Team Member Scores
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {displayMembers.map((member) => {
               const score = result.memberScores[member.userId] ?? 0;
+              const breakdown = result.memberBreakdowns?.[member.userId];
               return (
-                <ScoreBar
-                  key={member.id}
-                  label={member.displayName}
-                  score={score}
-                />
+                <Fragment key={member.id}>
+                  <ScoreBar label={member.displayName} score={score} />
+                  {breakdown && (
+                    <div className="ml-2 grid grid-cols-5 gap-2 text-[10px] font-mono pb-2 border-b border-slate-100 last:border-0">
+                      {([
+                        ['Interest', breakdown.interestScore, 30],
+                        ['Skills',   breakdown.skillScore,    25],
+                        ['Avail.',   breakdown.availabilityScore, 20],
+                        ['Budget',   breakdown.budgetScore,   15],
+                        ['Learning', breakdown.learningScore, 10],
+                      ] as [string, number, number][]).map(([label, val, max]) => (
+                        <div key={label} className="flex flex-col items-center gap-0.5">
+                          <span className="text-slate-400 uppercase tracking-wider">{label}</span>
+                          <span className="font-bold text-slate-700">{val.toFixed(1)}</span>
+                          <span className="text-slate-400">/{max}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Fragment>
               );
             })}
           </div>
@@ -299,7 +328,7 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full border border-slate-200 shadow-2xl space-y-4 text-left">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-extrabold text-slate-900">Export Consensus Report</h3>
+              <h3 className="text-base font-extrabold text-slate-900">Copy Markdown Report</h3>
               <button
                 onClick={() => setExportOpen(false)}
                 className="text-slate-400 hover:text-slate-700 text-xs font-bold p-1 h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center cursor-pointer"
@@ -309,7 +338,7 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
             </div>
 
             <p className="text-xs text-slate-500">
-              Copy this Markdown breakdown to present to hackathon judges or paste into your team pitch deck:
+              Copy this Markdown breakdown to share with your team or paste into a pitch deck:
             </p>
 
             <textarea

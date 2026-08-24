@@ -7,16 +7,16 @@ interface MemberDetailModalProps {
     id: string;
     name: string;
     avatarColor: string;
-    skills: string[];
-    interests: string[];
+    skills: string[] | string;
+    interests: string[] | string;
     availabilityHours: number;
     budget: number;
-    learningGoals: string[];
-    notes?: string;
-  } | null;
-  fitScore?: number;
-  assignedRole?: string;
-  onEdit?: (memberId: string) => void;
+    learningGoals: string[] | string;
+    notes?: string | undefined;
+  } | null | undefined;
+  fitScore?: number | undefined;
+  assignedRole?: string | undefined;
+  onEdit?: ((memberId: string) => void) | undefined;
 }
 
 export default function MemberDetailModal({

@@ -9,6 +9,8 @@ export interface GroupMember {
     id: string;
     groupId: string;
     userId: string;
+    /** 'leader' for the group creator; 'member' for everyone else */
+    role: "leader" | "member";
     joinedAt: number;
     /** Populated in joined queries */
     user?: User;

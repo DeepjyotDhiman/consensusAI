@@ -10,11 +10,12 @@ interface PreferenceRow {
   group_member_id: string;
   skills: string;
   availability_hours: number;
-  budget: number;
+  budget: number | null;
   interests: string;
   learning_goals: string;
   priorities: string;
   notes: string;
+  submitted_at: number | null;
   updated_at: number;
 }
 
@@ -22,6 +23,7 @@ interface GroupMemberRow {
   id: string;
   group_id: string;
   user_id: string;
+  role: string;
   joined_at: number;
 }
 
@@ -55,11 +57,12 @@ function rowToPreference(row: PreferenceRow): Preference {
     groupMemberId: row.group_member_id,
     skills: parseArrayField(row.skills),
     availabilityHours: Number(row.availability_hours) || 0,
-    budget: Number(row.budget) || 0,
+    budget: row.budget != null ? Number(row.budget) : null,
     interests: parseArrayField(row.interests),
     learningGoals: parseArrayField(row.learning_goals),
     priorities: parseArrayField(row.priorities),
     notes: row.notes || "",
+    submittedAt: row.submitted_at ?? null,
     updatedAt: row.updated_at,
   };
 }
@@ -86,11 +89,12 @@ export function upsert(
     groupMemberId,
     skills: [],
     availabilityHours: 0,
-    budget: 0,
+    budget: null,
     interests: [],
     learningGoals: [],
     priorities: [],
     notes: "",
+    submittedAt: null,
   };
 
   const merged: Preference = {
@@ -101,15 +105,22 @@ export function upsert(
     learningGoals: parseArrayField(data.learningGoals ?? base.learningGoals),
     priorities: parseArrayField(data.priorities ?? base.priorities),
     availabilityHours: Number(data.availabilityHours ?? base.availabilityHours) || 0,
-    budget: Number(data.budget ?? base.budget) || 0,
+    // Budget: null means "not set"; 0 means explicitly zero
+    budget: data.budget !== undefined
+      ? (data.budget === null ? null : Number(data.budget))
+      : base.budget,
+    // submittedAt: only set forward (never clear a submission)
+    submittedAt: data.submittedAt !== undefined
+      ? data.submittedAt
+      : (base.submittedAt ?? null),
     groupMemberId,
   };
 
   db.prepare(
     `INSERT OR REPLACE INTO preferences
        (id, group_member_id, skills, availability_hours, budget,
-        interests, learning_goals, priorities, notes, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        interests, learning_goals, priorities, notes, submitted_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     merged.id ?? uuidv4(),
     merged.groupMemberId,
@@ -120,6 +131,7 @@ export function upsert(
     JSON.stringify(merged.learningGoals),
     JSON.stringify(merged.priorities),
     merged.notes,
+    merged.submittedAt ?? null,
     Date.now()
   );
 
@@ -144,6 +156,7 @@ export function getAllForGroup(
       id: memberRow.id,
       groupId: memberRow.group_id,
       userId: memberRow.user_id,
+      role: (memberRow.role === "leader" ? "leader" : "member") as "leader" | "member",
       joinedAt: memberRow.joined_at,
     };
 

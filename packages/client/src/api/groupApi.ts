@@ -1,11 +1,21 @@
 import type { Group, GroupMember, Preference, ConsensusOutput, User } from '@consensus/shared';
 
 const BASE = '/api/v1';
+const TOKEN_KEY = 'consensus_auth_token';
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+      ...(options?.headers as Record<string, string> | undefined),
+    },
   });
   const json = (await res.json()) as { data?: T; error?: string };
   if (!res.ok || json.error) {
@@ -19,6 +29,7 @@ export interface GroupWithMembers {
   members: Array<{
     id: string;
     userId: string;
+    role: 'leader' | 'member';
     displayName: string;
     avatarColor: string;
     joinedAt: number;
@@ -43,10 +54,11 @@ export interface Candidate {
 }
 
 export const groupApi = {
-  createGroup: (name: string, userId?: string) =>
-    request<{ group: Group; joinCode: string }>('/groups', {
+  /** Create a new group. Creator is automatically joined as leader. */
+  createGroup: (name: string) =>
+    request<{ group: Group; member: GroupMember }>('/groups', {
       method: 'POST',
-      body: JSON.stringify({ name, userId })
+      body: JSON.stringify({ name }),
     }),
 
   getUserGroups: (userId: string) =>
@@ -57,13 +69,14 @@ export const groupApi = {
 
   deleteGroup: (id: string) =>
     request<{ success: boolean; id: string }>(`/groups/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
     }),
 
-  joinGroup: (joinCode: string, userId: string) =>
+  /** Join a group by code. Auth token identifies who is joining — no userId param needed. */
+  joinGroup: (joinCode: string) =>
     request<JoinResult>('/groups/join', {
       method: 'POST',
-      body: JSON.stringify({ joinCode, userId })
+      body: JSON.stringify({ joinCode }),
     }),
 
   getPreferences: (groupMemberId: string) =>
@@ -81,6 +94,6 @@ export const groupApi = {
   createUser: (displayName: string, avatarColor?: string) =>
     request<{ user: User }>('/users', {
       method: 'POST',
-      body: JSON.stringify({ displayName, avatarColor })
-    })
+      body: JSON.stringify({ displayName, avatarColor }),
+    }),
 };

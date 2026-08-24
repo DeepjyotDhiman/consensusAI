@@ -3,17 +3,34 @@ import db from "../db/db.js";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+function parseArrayField(input) {
+    if (Array.isArray(input))
+        return input.filter(Boolean).map(String);
+    if (typeof input === "string") {
+        try {
+            const parsed = JSON.parse(input);
+            if (Array.isArray(parsed))
+                return parsed.filter(Boolean).map(String);
+        }
+        catch {
+            /* not JSON string, parse as CSV */
+        }
+        return input.split(",").map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+}
 function rowToPreference(row) {
     return {
         id: row.id,
         groupMemberId: row.group_member_id,
-        skills: JSON.parse(row.skills),
-        availabilityHours: row.availability_hours,
-        budget: row.budget,
-        interests: JSON.parse(row.interests),
-        learningGoals: JSON.parse(row.learning_goals),
-        priorities: JSON.parse(row.priorities),
-        notes: row.notes,
+        skills: parseArrayField(row.skills),
+        availabilityHours: Number(row.availability_hours) || 0,
+        budget: row.budget != null ? Number(row.budget) : null,
+        interests: parseArrayField(row.interests),
+        learningGoals: parseArrayField(row.learning_goals),
+        priorities: parseArrayField(row.priorities),
+        notes: row.notes || "",
+        submittedAt: row.submitted_at ?? null,
         updatedAt: row.updated_at,
     };
 }
@@ -32,17 +49,35 @@ export function upsert(groupMemberId, data) {
         groupMemberId,
         skills: [],
         availabilityHours: 0,
-        budget: 0,
+        budget: null,
         interests: [],
         learningGoals: [],
         priorities: [],
         notes: "",
+        submittedAt: null,
     };
-    const merged = { ...base, ...data, groupMemberId };
+    const merged = {
+        ...base,
+        ...data,
+        skills: parseArrayField(data.skills ?? base.skills),
+        interests: parseArrayField(data.interests ?? base.interests),
+        learningGoals: parseArrayField(data.learningGoals ?? base.learningGoals),
+        priorities: parseArrayField(data.priorities ?? base.priorities),
+        availabilityHours: Number(data.availabilityHours ?? base.availabilityHours) || 0,
+        // Budget: null means "not set"; 0 means explicitly zero
+        budget: data.budget !== undefined
+            ? (data.budget === null ? null : Number(data.budget))
+            : base.budget,
+        // submittedAt: only set forward (never clear a submission)
+        submittedAt: data.submittedAt !== undefined
+            ? data.submittedAt
+            : (base.submittedAt ?? null),
+        groupMemberId,
+    };
     db.prepare(`INSERT OR REPLACE INTO preferences
        (id, group_member_id, skills, availability_hours, budget,
-        interests, learning_goals, priorities, notes, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(merged.id ?? uuidv4(), merged.groupMemberId, JSON.stringify(merged.skills), merged.availabilityHours, merged.budget, JSON.stringify(merged.interests), JSON.stringify(merged.learningGoals), JSON.stringify(merged.priorities), merged.notes, Date.now());
+        interests, learning_goals, priorities, notes, submitted_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(merged.id ?? uuidv4(), merged.groupMemberId, JSON.stringify(merged.skills), merged.availabilityHours, merged.budget, JSON.stringify(merged.interests), JSON.stringify(merged.learningGoals), JSON.stringify(merged.priorities), merged.notes, merged.submittedAt ?? null, Date.now());
     return get(groupMemberId);
 }
 export function getAllForGroup(groupId) {
@@ -57,6 +92,7 @@ export function getAllForGroup(groupId) {
             id: memberRow.id,
             groupId: memberRow.group_id,
             userId: memberRow.user_id,
+            role: (memberRow.role === "leader" ? "leader" : "member"),
             joinedAt: memberRow.joined_at,
         };
         const user = userRow

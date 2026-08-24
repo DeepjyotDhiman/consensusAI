@@ -23,6 +23,7 @@ export default function MemberCard({ member, preference, isCurrentUser, onEdit, 
   if (!member) return null;
 
   const hasPrefs = preference !== null && preference !== undefined;
+  const isSubmitted = hasPrefs && preference?.submittedAt != null;
   const displayName = member.displayName || 'Student';
   const initials = displayName.slice(0, 2).toUpperCase();
 
@@ -71,6 +72,11 @@ export default function MemberCard({ member, preference, isCurrentUser, onEdit, 
                 You
               </span>
             )}
+            {member.role === 'leader' && (
+              <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded font-bold">
+                Leader
+              </span>
+            )}
 
             <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
               {onRemove && (
@@ -100,13 +106,19 @@ export default function MemberCard({ member, preference, isCurrentUser, onEdit, 
                   </svg>
                 </button>
               )}
-              {/* Preference dot indicator */}
+              {/* Submission status badge */}
               <span
-                className={`h-2 w-2 rounded-full flex-shrink-0 ${
-                  hasPrefs ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+                className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                  isSubmitted
+                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                    : hasPrefs
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                    : 'bg-slate-100 text-slate-500 border border-slate-200'
                 }`}
-                title={hasPrefs ? 'Preferences synced' : 'No preferences yet'}
-              />
+                title={isSubmitted ? 'Preferences submitted' : hasPrefs ? 'Editing in progress' : 'No preferences yet'}
+              >
+                {isSubmitted ? '✓ Submitted' : hasPrefs ? '⏳ Editing' : '○ Pending'}
+              </span>
             </div>
           </div>
 

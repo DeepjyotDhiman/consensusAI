@@ -9,6 +9,13 @@ export interface MemberInput {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+function toArray(val: string[] | string | undefined | null): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.map(String).filter(Boolean);
+  if (typeof val === "string") return val.split(",").map((s) => s.trim()).filter(Boolean);
+  return [];
+}
+
 function jaccardSimilarity(a: string[], b: string[]): number {
   if (a.length === 0 && b.length === 0) return 1;
   const setA = new Set(a.map((s) => s.toLowerCase()));
@@ -49,8 +56,8 @@ function detectSkillOverlapConflict(members: MemberInput[]): Conflict | null {
       const mj = members[j];
       if (!mi || !mj) continue;
       const overlap = jaccardSimilarity(
-        mi.preferences.skills,
-        mj.preferences.skills
+        toArray(mi.preferences.skills),
+        toArray(mj.preferences.skills)
       );
       if (overlap < worstOverlap) {
         worstOverlap = overlap;
@@ -79,7 +86,12 @@ function detectSkillOverlapConflict(members: MemberInput[]): Conflict | null {
 function detectBudgetConflict(members: MemberInput[]): Conflict | null {
   if (members.length < 2) return null;
 
-  const budgets = members.map((m) => m.preferences.budget);
+  const budgets = members
+    .map((m) => m.preferences.budget)
+    .filter((b): b is number => b !== null && b !== undefined);
+
+  if (budgets.length < 2) return null;
+
   const med = median(budgets);
   const maxBudget = Math.max(...budgets);
   const minBudget = Math.min(...budgets);
@@ -104,7 +116,7 @@ function detectInterestConflict(members: MemberInput[]): Conflict | null {
   if (members.length < 2) return null;
 
   const interestSets = members.map(
-    (m) => new Set(m.preferences.interests.map((i) => i.toLowerCase()))
+    (m) => new Set(toArray(m.preferences.interests).map((i: string) => i.toLowerCase()))
   );
 
   // Intersection: start with first member's interests, keep only those in all others
@@ -130,6 +142,33 @@ function detectInterestConflict(members: MemberInput[]): Conflict | null {
 }
 
 // ---------------------------------------------------------------------------
+// Rule 4: Availability conflict
+// Fires when the ratio of max to min availability is > 2.5×
+// (e.g., one member has 20 hrs/wk and another has 5 hrs/wk → 4× ratio)
+// ---------------------------------------------------------------------------
+function detectAvailabilityConflict(members: MemberInput[]): Conflict | null {
+  if (members.length < 2) return null;
+
+  const hours = members.map((m) => Number(m.preferences.availabilityHours) || 0);
+  const validHours = hours.filter((h) => h > 0);
+  if (validHours.length < 2) return null;
+
+  const maxHours = Math.max(...validHours);
+  const minHours = Math.min(...validHours);
+  if (minHours === 0 || maxHours / minHours <= 2.5) return null;
+
+  const ratio = maxHours / minHours;
+  const severity = ratio > 4 ? "high" : ratio > 3 ? "medium" : "low";
+
+  return {
+    type: "availability",
+    affectedUserIds: members.map((m) => m.userId),
+    severity,
+    description: `Availability varies significantly across the group: ${minHours}–${maxHours} hours/week`,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
 export function analyze(members: MemberInput[]): Conflict[] {
@@ -137,6 +176,7 @@ export function analyze(members: MemberInput[]): Conflict[] {
     detectSkillOverlapConflict(members),
     detectBudgetConflict(members),
     detectInterestConflict(members),
+    detectAvailabilityConflict(members),
   ];
 
   return results.filter((c): c is Conflict => c !== null);

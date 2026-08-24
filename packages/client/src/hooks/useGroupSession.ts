@@ -6,20 +6,33 @@ import type { MemberWithDisplay } from '../store/groupStore.ts';
 
 type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-export function useGroupSession(groupId: string, userId: string) {
+const DEBOUNCE_MS = 400;
+
+export function useGroupSession(groupId: string, userId?: string | null) {
   const socketRef = useRef<AppSocket | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const store = useGroupStore();
 
   useEffect(() => {
+    const validUserId = userId?.trim();
+    if (!groupId || !validUserId) {
+      store.setConnectionStatus('disconnected');
+      return;
+    }
+
+    const token = localStorage.getItem('consensus_auth_token');
+
     const socket: AppSocket = io('http://localhost:3001', {
       transports: ['websocket'],
-      autoConnect: true
+      autoConnect: true,
+      // Send JWT in handshake so the server can optionally verify socket identity
+      auth: { token: token ?? '' },
     });
     socketRef.current = socket;
 
     socket.on('connect', () => {
       store.setConnectionStatus('connected');
-      socket.emit('group:join', { groupId, userId });
+      socket.emit('group:join', { groupId, userId: validUserId });
     });
 
     socket.on('disconnect', () => {
@@ -30,8 +43,7 @@ export function useGroupSession(groupId: string, userId: string) {
       store.setConnectionStatus('reconnecting');
     });
 
-    // Full state snapshot — members arrive as GroupMember[] but the server
-    // enriches them with displayName/avatarColor at query time.
+    // Full state snapshot — members arrive enriched with displayName/avatarColor/role
     socket.on('group:state', (payload) => {
       store.setMembers(payload.members as unknown as MemberWithDisplay[]);
       for (const [memberId, preference] of Object.entries(payload.preferencesMap)) {
@@ -62,13 +74,35 @@ export function useGroupSession(groupId: string, userId: string) {
     };
   }, [groupId, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Auto-save preference changes — does NOT trigger consensus */
   const updatePreference = useCallback((groupMemberId: string, preferences: Preference) => {
-    if (socketRef.current?.connected) {
-      console.log('Sending Members:', store.members);
-      console.log('[Socket Emit] preference:update for member:', groupMemberId, preferences);
-      socketRef.current.emit('preference:update', { groupMemberId, preferences });
+    if (!socketRef.current?.connected) return;
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      console.log('[Socket Emit] preference:update for member:', groupMemberId);
+      socketRef.current?.emit('preference:update', { groupMemberId, preferences });
+      debounceTimerRef.current = null;
+    }, DEBOUNCE_MS);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Formal submission — sets submitted_at on server, triggers consensus when all done */
+  const submitPreference = useCallback((groupMemberId: string, preferences: Preference) => {
+    if (!socketRef.current?.connected) return;
+    // Cancel any pending auto-save debounce
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
     }
-  }, [store.members]);
+    console.log('[Socket Emit] preference:submit for member:', groupMemberId);
+    socketRef.current?.emit('preference:submit', { groupMemberId, preferences });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Leader-only: force consensus generation */
+  const generateConsensus = useCallback((groupId: string, userId: string) => {
+    if (!socketRef.current?.connected) return;
+    console.log('[Socket Emit] consensus:generate for group:', groupId);
+    socketRef.current?.emit('consensus:generate', { groupId, userId });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     group: store.group,
@@ -78,6 +112,8 @@ export function useGroupSession(groupId: string, userId: string) {
     connectionStatus: store.connectionStatus,
     currentUserId: store.currentUserId,
     currentGroupMemberId: store.currentGroupMemberId,
-    updatePreference
+    updatePreference,
+    submitPreference,
+    generateConsensus,
   };
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import db from "../db/db.js";
 import { validate } from "../middleware/validate.js";
-import { optionalAuthenticateToken, type AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { optionalAuthenticateToken, authenticateToken, type AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import type { Group, GroupMember, User } from "@consensus/shared";
 
 export const groupsRouter: IRouter = Router();
@@ -20,6 +20,7 @@ interface GroupMemberRow {
   id: string;
   group_id: string;
   user_id: string;
+  role: string;
   joined_at: number;
 }
 
@@ -48,6 +49,7 @@ function rowToMember(row: GroupMemberRow): GroupMember {
     id: row.id,
     groupId: row.group_id,
     userId: row.user_id,
+    role: (row.role === "leader" ? "leader" : "member") as "leader" | "member",
     joinedAt: row.joined_at,
   };
 }
@@ -71,9 +73,9 @@ groupsRouter.get("/", optionalAuthenticateToken, (req: AuthenticatedRequest, res
       // Find groups created by or joined by targetUserId
       groupRows = db
         .prepare<[string, string], GroupRow>(
-          `SELECT DISTINCT g.* FROM groups g 
-           LEFT JOIN group_members gm ON g.id = gm.group_id 
-           WHERE g.user_id = ? OR gm.user_id = ? 
+          `SELECT DISTINCT g.* FROM groups g
+           LEFT JOIN group_members gm ON g.id = gm.group_id
+           WHERE g.user_id = ? OR gm.user_id = ?
            ORDER BY g.created_at DESC`
         )
         .all(targetUserId, targetUserId);
@@ -89,48 +91,61 @@ groupsRouter.get("/", optionalAuthenticateToken, (req: AuthenticatedRequest, res
   }
 });
 
-// POST /api/v1/groups — create group
+// POST /api/v1/groups — create group (requires auth; creator is auto-joined as leader)
 const createGroupSchema = z.object({
   name: z.string().min(1, "name is required"),
-  userId: z.string().optional(),
 });
 
 groupsRouter.post(
   "/",
-  optionalAuthenticateToken,
+  authenticateToken,
   validate(createGroupSchema),
   (req: AuthenticatedRequest, res, next) => {
     try {
-      const { name, userId } = req.body as z.infer<typeof createGroupSchema>;
+      const { name } = req.body as z.infer<typeof createGroupSchema>;
+      const creatorUserId = req.user!.userId;
       const id = uuidv4();
       const joinCode = generateJoinCode();
       const createdAt = Date.now();
-      const creatorUserId = req.user?.userId || userId || null;
 
       db.prepare(
         "INSERT INTO groups (id, user_id, join_code, name, created_at) VALUES (?, ?, ?, ?, ?)"
       ).run(id, creatorUserId, joinCode, name, createdAt);
 
+      // Auto-join creator as the group leader
+      const memberId = uuidv4();
+      db.prepare(
+        "INSERT INTO group_members (id, group_id, user_id, role, joined_at) VALUES (?, ?, ?, ?, ?)"
+      ).run(memberId, id, creatorUserId, "leader", createdAt);
+
       const group: Group = { id, joinCode, name, createdAt };
-      res.status(201).json({ data: { group } });
+      const member: GroupMember = {
+        id: memberId,
+        groupId: id,
+        userId: creatorUserId,
+        role: "leader",
+        joinedAt: createdAt,
+      };
+      res.status(201).json({ data: { group, member } });
     } catch (err) {
       next(err);
     }
   }
 );
 
-// POST /api/v1/groups/join — join group by code
+// POST /api/v1/groups/join — join group by code (requires auth; must join as yourself)
 const joinGroupSchema = z.object({
   joinCode: z.string().length(6, "joinCode must be exactly 6 characters"),
-  userId: z.string().min(1, "userId is required"),
 });
 
 groupsRouter.post(
   "/join",
+  authenticateToken,
   validate(joinGroupSchema),
-  (req, res, next) => {
+  (req: AuthenticatedRequest, res, next) => {
     try {
-      const { joinCode, userId } = req.body as z.infer<typeof joinGroupSchema>;
+      const { joinCode } = req.body as z.infer<typeof joinGroupSchema>;
+      const userId = req.user!.userId;
 
       const groupRow = db
         .prepare<[string], GroupRow>(
@@ -139,23 +154,17 @@ groupsRouter.post(
         .get(joinCode);
 
       if (!groupRow) {
-        res.status(404).json({ error: "Group not found" });
+        res.status(404).json({ error: "Group not found. Check the join code and try again." });
         return;
       }
 
-      let userRow = db
+      const userRow = db
         .prepare<[string], UserRow>("SELECT * FROM users WHERE id = ?")
         .get(userId);
 
       if (!userRow) {
-        // Auto-provision user record so preset or custom members can join seamlessly
-        db.prepare(
-          "INSERT INTO users (id, display_name, avatar_color, created_at) VALUES (?, ?, ?, ?)"
-        ).run(userId, "Group Member", "#0d9488", Date.now());
-
-        userRow = db
-          .prepare<[string], UserRow>("SELECT * FROM users WHERE id = ?")
-          .get(userId) as UserRow;
+        res.status(404).json({ error: "User account not found." });
+        return;
       }
 
       // Check if already a member
@@ -169,8 +178,8 @@ groupsRouter.post(
         const memberId = uuidv4();
         const joinedAt = Date.now();
         db.prepare(
-          "INSERT INTO group_members (id, group_id, user_id, joined_at) VALUES (?, ?, ?, ?)"
-        ).run(memberId, groupRow.id, userId, joinedAt);
+          "INSERT INTO group_members (id, group_id, user_id, role, joined_at) VALUES (?, ?, ?, ?, ?)"
+        ).run(memberId, groupRow.id, userId, "member", joinedAt);
 
         memberRow = db
           .prepare<[string], GroupMemberRow>(
@@ -218,6 +227,7 @@ groupsRouter.get("/:id", (req, res, next) => {
       return {
         id: memberRow.id,
         userId: memberRow.user_id,
+        role: memberRow.role as "leader" | "member",
         displayName: userRow?.display_name ?? "Unknown",
         avatarColor: userRow?.avatar_color ?? "#ccc",
         joinedAt: memberRow.joined_at,
@@ -230,8 +240,8 @@ groupsRouter.get("/:id", (req, res, next) => {
   }
 });
 
-// DELETE /api/v1/groups/:id — delete group and associated members, preferences & consensus results
-groupsRouter.delete("/:id", (req, res, next) => {
+// DELETE /api/v1/groups/:id — delete group (creator only)
+groupsRouter.delete("/:id", authenticateToken, (req: AuthenticatedRequest, res, next) => {
   try {
     const groupId = req.params["id"] ?? "";
 
@@ -241,6 +251,12 @@ groupsRouter.delete("/:id", (req, res, next) => {
 
     if (!groupRow) {
       res.status(404).json({ error: "Group not found" });
+      return;
+    }
+
+    // Only allow the creator to delete the group
+    if (groupRow.user_id && req.user!.userId !== groupRow.user_id) {
+      res.status(403).json({ error: "Only the group creator can delete this group" });
       return;
     }
 

@@ -9,6 +9,15 @@ export interface PreferenceUpdatePayload {
     groupMemberId: string;
     preferences: Preference;
 }
+export interface PreferenceSubmitPayload {
+    groupMemberId: string;
+    preferences: Preference;
+}
+export interface ConsensusGeneratePayload {
+    groupId: string;
+    /** userId of the requester — must match the group leader */
+    userId: string;
+}
 export interface GroupStatePayload {
     members: GroupMember[];
     preferencesMap: Record<string, Preference | null>;
@@ -33,5 +42,9 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
     "group:join": (payload: GroupJoinPayload) => void;
     "preference:update": (payload: PreferenceUpdatePayload) => void;
+    /** Member formally submits their preferences — triggers consensus if all members submitted */
+    "preference:submit": (payload: PreferenceSubmitPayload) => void;
+    /** Leader explicitly triggers final consensus generation */
+    "consensus:generate": (payload: ConsensusGeneratePayload) => void;
 }
 //# sourceMappingURL=socket.d.ts.map

@@ -1,6 +1,9 @@
 import crypto from "crypto";
 
-const JWT_SECRET = process.env["JWT_SECRET"] || "consensus_ai_secret_jwt_key_2026";
+// IMPORTANT: Set JWT_SECRET in your environment (.env). The fallback string below
+// is for local development convenience only — it is NOT secure for production.
+const JWT_SECRET =
+  process.env["JWT_SECRET"] || "dev_only_change_in_production_jwt_secret_2026";
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -10,7 +13,10 @@ export function hashPassword(password: string): string {
 
 export function verifyPassword(password: string, storedHash: string): boolean {
   if (!storedHash || !storedHash.includes(":")) return false;
-  const [salt, originalHash] = storedHash.split(":");
+  const parts = storedHash.split(":");
+  const salt = parts[0];
+  const originalHash = parts[1];
+  if (!salt || !originalHash) return false;
   const hash = crypto.scryptSync(password, salt, 64).toString("hex");
   return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(originalHash, "hex"));
 }
@@ -31,12 +37,16 @@ export function verifyToken(token: string): { userId: string; username: string }
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    const [header, body, signature] = parts;
+    const header = parts[0];
+    const body = parts[1];
+    const signature = parts[2];
+    if (!header || !body || !signature) return null;
+
     const expectedSignature = crypto
       .createHmac("sha256", JWT_SECRET)
       .update(`${header}.${body}`)
       .digest("base64url");
-    
+
     if (signature !== expectedSignature) {
       return null;
     }
@@ -49,3 +59,4 @@ export function verifyToken(token: string): { userId: string; username: string }
     return null;
   }
 }
+

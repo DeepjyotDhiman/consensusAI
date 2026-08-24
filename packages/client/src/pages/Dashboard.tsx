@@ -54,17 +54,23 @@ export default function Dashboard() {
 
   async function handleCreateGroup(e: React.FormEvent) {
     e.preventDefault();
-    console.log('[UI Click] Create Group Submit triggered:', newGroupName, newProjectName);
+    console.log('[UI Click] Create Group Submit triggered:', newGroupName);
     if (!newGroupName.trim() || !user) return;
 
     setCreating(true);
     setError(null);
 
     try {
-      const { group } = await groupApi.createGroup(newGroupName.trim(), user.id);
+      const { group, member } = await groupApi.createGroup(newGroupName.trim());
+
+      // Store creator identity so GroupDashboard knows who the leader is
+      localStorage.setItem('consensus_userId', user.id);
+      localStorage.setItem('consensus_groupMemberId', member.id);
+      localStorage.setItem('consensus_groupId', group.id);
       if (newProjectName.trim()) {
         localStorage.setItem(`consensus_projectName_${group.id}`, newProjectName.trim());
       }
+
       setNewGroupName('');
       setNewProjectName('');
       setShowCreateModal(false);

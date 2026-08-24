@@ -9,7 +9,6 @@ import CreateGroup from './pages/CreateGroup.tsx';
 import JoinGroup from './pages/JoinGroup.tsx';
 import GroupDashboard from './pages/GroupDashboard.tsx';
 import ConsensusResult from './pages/ConsensusResult.tsx';
-import SequentialMemberEntry from './components/SequentialMemberEntry.tsx';
 
 export default function App() {
   return (
@@ -36,8 +35,23 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/join" element={<JoinGroup />} />
-            <Route path="/join/:code" element={<JoinGroup />} />
+            {/* /join requires authentication — members must log in before joining */}
+            <Route
+              path="/join"
+              element={
+                <ProtectedRoute>
+                  <JoinGroup />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/join/:code"
+              element={
+                <ProtectedRoute>
+                  <JoinGroup />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/group/:id"
               element={
@@ -46,15 +60,17 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/group/:id/result" element={<ConsensusResult />} />
+            {/* Result page is protected — only authenticated members can view */}
             <Route
-              path="/sequential"
+              path="/group/:id/result"
               element={
                 <ProtectedRoute>
-                  <SequentialMemberEntry />
+                  <ConsensusResult />
                 </ProtectedRoute>
               }
             />
+            {/* Fallback route for unknown URLs */}
+            <Route path="*" element={<Landing />} />
           </Routes>
         </main>
 

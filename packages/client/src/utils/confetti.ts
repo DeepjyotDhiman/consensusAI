@@ -58,7 +58,7 @@ export function triggerConfetti() {
       vx: (isLeft ? 1 : -1) * (Math.random() * 12 + 4),
       vy: -(Math.random() * 16 + 10),
       size: Math.random() * 8 + 6,
-      color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
+      color: PALETTE[Math.floor(Math.random() * PALETTE.length)] ?? '#0d9488',
       rotation: Math.random() * Math.PI * 2,
       rotationSpeed: (Math.random() - 0.5) * 0.2,
       opacity: 1,
