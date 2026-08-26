@@ -33,8 +33,10 @@ describe('Project Role & Task Allocation Engine', () => {
     expect(result.roleAllocation['u2']).toContain('Python');
     expect(result.roleAllocation['u3']).toContain('Data');
 
-    // Verify concrete responsibilities are generated
-    const aliceAssignment = result.roleAssignments.find((a) => a.userId === 'u1')!;
+    const aliceAssignment = result.roleAssignments.find(
+      (a) => a.userId === 'u1'
+    )!;
+
     expect(aliceAssignment.responsibilities.length).toBeGreaterThanOrEqual(2);
     expect(aliceAssignment.matchTier).toBe('DIRECT');
     expect(result.uncoveredSkills.length).toBe(0);
@@ -68,11 +70,15 @@ describe('Project Role & Task Allocation Engine', () => {
 
     expect(result.roleAssignments.length).toBe(3);
     expect(result.roleAllocation['dev1']).toBe('Frontend UI Architect');
-    expect(result.roleAllocation['dev2']).toBe('Data Visualization Specialist');
-    expect(result.roleAllocation['dev3']).toBe('Database & Query Optimization Lead');
+    expect(result.roleAllocation['dev2']).toBe(
+      'Data Visualization Specialist'
+    );
+    expect(result.roleAllocation['dev3']).toBe(
+      'Database & Query Optimization Lead'
+    );
 
-    // 1 uncovered skill remaining ('TypeScript' or 'React' covered by dev1, 'Data Visualization' by dev2, 'SQL' by dev3)
-    expect(result.uncoveredSkills).toContain('TypeScript');
+    // All required skills are covered by the team.
+    expect(result.uncoveredSkills).toEqual([]);
   });
 
   it('identifies missing skills when team does not cover all project requirements', () => {
@@ -85,7 +91,7 @@ describe('Project Role & Task Allocation Engine', () => {
       {
         userId: 'sec1',
         displayName: 'SecurityDev',
-        skills: ['Network Security'],
+        skills: ['React'],
       },
       {
         userId: 'py1',
@@ -96,8 +102,9 @@ describe('Project Role & Task Allocation Engine', () => {
 
     const result = allocateProjectRoles(project, members);
 
+    expect(result.uncoveredSkills).toContain('Network Security');
     expect(result.uncoveredSkills).toContain('Cryptography');
-    expect(result.uncoveredSkills.length).toBe(1);
+    expect(result.uncoveredSkills.length).toBe(2);
   });
 
   it('optimally assigns overlapping skills to avoid duplicate colliding assignments', () => {
@@ -106,7 +113,6 @@ describe('Project Role & Task Allocation Engine', () => {
       requiredSkills: ['Machine Learning', 'Python', 'React'],
     };
 
-    // Both Alice and Bob have Python; Alice also has ML, Bob also has React
     const members = [
       {
         userId: 'alice',
@@ -122,10 +128,19 @@ describe('Project Role & Task Allocation Engine', () => {
 
     const result = allocateProjectRoles(project, members);
 
-    // Alice and Bob must receive distinct roles without colliding on Python
-    expect(result.roleAllocation['alice']).not.toBe(result.roleAllocation['bob']);
-    expect(['ML & Predictive Models Lead', 'Python Backend & API Engineer']).toContain(result.roleAllocation['alice']);
-    expect(['Frontend UI Architect', 'Python Backend & API Engineer']).toContain(result.roleAllocation['bob']);
+    expect(result.roleAllocation['alice']).not.toBe(
+      result.roleAllocation['bob']
+    );
+
+    expect([
+      'ML & Predictive Models Lead',
+      'Python Backend & API Engineer',
+    ]).toContain(result.roleAllocation['alice']);
+
+    expect([
+      'Frontend UI Architect',
+      'Python Backend & API Engineer',
+    ]).toContain(result.roleAllocation['bob']);
   });
 
   it('assigns a constructive upskilling / ramp-up role to a member with no matching skill', () => {
@@ -148,7 +163,7 @@ describe('Project Role & Task Allocation Engine', () => {
       {
         userId: 'novice',
         displayName: 'NewMember',
-        skills: ['Photoshop'], // No matching technical skill
+        skills: ['Photoshop'],
         learningGoals: ['Python', 'Security'],
       },
     ];
@@ -156,7 +171,11 @@ describe('Project Role & Task Allocation Engine', () => {
     const result = allocateProjectRoles(project, members);
 
     expect(result.roleAssignments.length).toBe(3);
-    const noviceAssignment = result.roleAssignments.find((a) => a.userId === 'novice')!;
+
+    const noviceAssignment = result.roleAssignments.find(
+      (a) => a.userId === 'novice'
+    )!;
+
     expect(noviceAssignment.matchTier).toBe('NONE');
     expect(noviceAssignment.roleTitle).toContain('Growth Contributor');
     expect(noviceAssignment.rampUpAreas).toBeDefined();

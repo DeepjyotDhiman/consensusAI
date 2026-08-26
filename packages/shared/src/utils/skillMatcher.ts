@@ -418,8 +418,8 @@ export function allocateProjectRoles(
       pairing.tier === "DIRECT"
         ? `Direct skill proficiency in ${pairing.matchedSkill}.`
         : pairing.tier === "CLOSE"
-        ? `Related expertise in ${pairing.matchedSkill} aligns with ${pairing.reqSkill}.`
-        : `Transferable experience in ${pairing.matchedSkill} provides adaptable foundations.`;
+          ? `Related expertise in ${pairing.matchedSkill} aligns with ${pairing.reqSkill}.`
+          : `Transferable experience in ${pairing.matchedSkill} provides adaptable foundations.`;
 
     roleAssignments.push({
       userId: pairing.member.userId,
@@ -432,8 +432,29 @@ export function allocateProjectRoles(
     });
   }
 
-  // Uncovered required skills
-  const uncoveredSkills = project.requiredSkills.filter((s) => !claimedSkills.has(s));
+ // Determine actual team coverage independently from role assignment.
+// A member may cover multiple project requirements even if they receive
+// only one primary role.
+const coveredSkills = new Set<string>();
+
+for (const reqSkill of project.requiredSkills) {
+  const hasTeamCoverage = members.some((member) =>
+    member.skills.some((memberSkill) => {
+      const match = classifySkillMatch(memberSkill, reqSkill);
+
+      // Direct and close matches count as covered.
+      return match.tier === 'DIRECT' || match.tier === 'CLOSE';
+    })
+  );
+
+  if (hasTeamCoverage) {
+    coveredSkills.add(reqSkill);
+  }
+}
+
+const uncoveredSkills = project.requiredSkills.filter(
+  (skill) => !coveredSkills.has(skill)
+);
 
   // For members not assigned to a primary required skill: assign upskilling or collaborative support role
   for (const member of members) {
