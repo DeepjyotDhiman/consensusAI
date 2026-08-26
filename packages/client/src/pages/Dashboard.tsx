@@ -12,7 +12,6 @@ export default function Dashboard() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [newGroupName, setNewGroupName] = useState('');
-  const [newProjectName, setNewProjectName] = useState('');
   const [creating, setCreating] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +45,7 @@ export default function Dashboard() {
       setGroups((prev) => prev.filter((g) => g.id !== groupId));
       setConfirmDeleteId(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to delete project group.');
+      setError(err.message || 'Failed to delete team.');
     } finally {
       setDeletingId(null);
     }
@@ -67,16 +66,12 @@ export default function Dashboard() {
       localStorage.setItem('consensus_userId', user.id);
       localStorage.setItem('consensus_groupMemberId', member.id);
       localStorage.setItem('consensus_groupId', group.id);
-      if (newProjectName.trim()) {
-        localStorage.setItem(`consensus_projectName_${group.id}`, newProjectName.trim());
-      }
 
       setNewGroupName('');
-      setNewProjectName('');
       setShowCreateModal(false);
       navigate(`/group/${group.id}`);
     } catch (err: any) {
-      setError(err.message || 'Failed to create project group.');
+      setError(err.message || 'Failed to create team.');
     } finally {
       setCreating(false);
     }
@@ -148,20 +143,20 @@ export default function Dashboard() {
         {loading ? (
           <div className="enterprise-card p-12 text-center space-y-3">
             <span className="h-6 w-6 rounded-full bg-teal-600 animate-ping inline-block" />
-            <p className="text-xs text-slate-500 font-medium">Loading your projects database...</p>
+            <p className="text-xs text-slate-500 font-medium">Loading your teams database...</p>
           </div>
         ) : groups.length === 0 ? (
           /* =========================================================================
-             NEW USER FLOW: 0 Groups -> Create Your First Group Form
+             NEW USER FLOW: 0 Groups -> Create Your First Team Form
              ========================================================================= */
           <div className="max-w-xl mx-auto enterprise-card p-8 space-y-6 shadow-md">
             <div className="text-center space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold uppercase tracking-wider mb-1">
                 <span>First Time Setup</span>
               </div>
-              <h2 className="text-2xl font-extrabold text-slate-900">Create Your First Project Group</h2>
+              <h2 className="text-2xl font-extrabold text-slate-900">Create Your First Team</h2>
               <p className="text-xs text-slate-600 font-normal">
-                You don't have any active project groups yet. Name your project below to start adding team members.
+                You don't have any active teams yet. Name your team below to get a shareable join code for your teammates. The project will be automatically recommended by AI based on team consensus.
               </p>
             </div>
 
@@ -174,32 +169,18 @@ export default function Dashboard() {
             <form onSubmit={handleCreateGroup} className="space-y-4 text-left">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Group / Team Name <span className="text-rose-500">*</span>
+                  Team / Group Name <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   className="enterprise-input"
-                  placeholder="e.g. CS490 Senior Capstone Alpha Team"
+                  placeholder="e.g. Team Phoenix or Alpha Squad"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Target Project Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="enterprise-input"
-                  placeholder="e.g. E-commerce Website, EduBot AI Chatbot, Portfolio, Mobile App"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                />
                 <p className="text-[10px] text-slate-500 mt-1">
-                  AI will dynamically calculate tech stack requirements & skill gaps based on your project name.
+                  💡 Team members will input their preferences, and ConsensusAI will recommend and synthesize the ideal project.
                 </p>
               </div>
 
@@ -208,25 +189,25 @@ export default function Dashboard() {
                 disabled={creating}
                 className="enterprise-btn-primary w-full py-3 text-sm flex items-center justify-center gap-2"
               >
-                <span>{creating ? 'Creating Project Group...' : 'Create First Group & Add Members'}</span>
+                <span>{creating ? 'Creating Team...' : 'Create Team & Add Members'}</span>
                 <span>→</span>
               </button>
             </form>
           </div>
         ) : (
           /* =========================================================================
-             RETURNING USER FLOW: Existing Projects Grid
+             RETURNING USER FLOW: Existing Teams Grid
              ========================================================================= */
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                Your Saved Project Groups ({groups.length})
+                Your Teams ({groups.length})
               </h2>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="text-xs text-teal-600 hover:text-teal-700 font-bold cursor-pointer"
               >
-                + Add Another Project
+                + Create New Team
               </button>
             </div>
 
@@ -251,7 +232,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => setConfirmDeleteId(g.id)}
                         className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors text-xs font-bold flex-shrink-0 cursor-pointer"
-                        title="Delete project"
+                        title="Delete team"
                       >
                         🗑️ Delete
                       </button>
@@ -271,7 +252,7 @@ export default function Dashboard() {
                             disabled={deletingId === g.id}
                             className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg shadow-sm cursor-pointer"
                           >
-                            {deletingId === g.id ? 'Deleting...' : 'Yes, Delete Project'}
+                            {deletingId === g.id ? 'Deleting...' : 'Yes, Delete Team'}
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(null)}
@@ -289,7 +270,7 @@ export default function Dashboard() {
                       to={`/group/${g.id}`}
                       className="enterprise-btn-primary w-full py-2.5 text-xs text-center justify-center block"
                     >
-                      Continue to Project Dashboard →
+                      Continue to Team Dashboard →
                     </Link>
                   </div>
                 </div>
@@ -299,13 +280,13 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* Modal for Creating Additional Projects */}
+      {/* Modal for Creating Additional Teams */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white p-6 rounded-2xl border border-slate-200 space-y-5 shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Create New Project Group
+                Create New Team
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -324,7 +305,7 @@ export default function Dashboard() {
             <form onSubmit={handleCreateGroup} className="space-y-4 text-left">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Group / Team Name <span className="text-rose-500">*</span>
+                  Team / Group Name <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -334,20 +315,9 @@ export default function Dashboard() {
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Target Project Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="enterprise-input"
-                  placeholder="e.g. E-commerce, EduBot, Portfolio, Mobile App"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  💡 The project will be automatically evaluated and recommended after teammates submit their preferences.
+                </p>
               </div>
 
               <div className="pt-2 flex items-center gap-3">
@@ -363,7 +333,7 @@ export default function Dashboard() {
                   disabled={creating}
                   className="enterprise-btn-primary flex-1 py-2.5 text-xs"
                 >
-                  {creating ? 'Creating...' : 'Create Project'}
+                  {creating ? 'Creating...' : 'Create Team'}
                 </button>
               </div>
             </form>
