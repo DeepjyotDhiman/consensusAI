@@ -3,7 +3,6 @@ import type { Preference } from "./preference.js";
 import type { ConsensusOutput } from "./consensus.js";
 export interface GroupJoinPayload {
     groupId: string;
-    userId: string;
 }
 export interface PreferenceUpdatePayload {
     groupMemberId: string;
@@ -15,8 +14,6 @@ export interface PreferenceSubmitPayload {
 }
 export interface ConsensusGeneratePayload {
     groupId: string;
-    /** userId of the requester — must match the group leader */
-    userId: string;
 }
 export interface GroupStatePayload {
     members: GroupMember[];

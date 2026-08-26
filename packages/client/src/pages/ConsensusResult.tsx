@@ -79,7 +79,7 @@ export default function ConsensusResult() {
   const result = session.consensusResult ?? staticResult;
   const displayMembers = session.members.length > 0 ? session.members : members;
   const groupName = store.group?.name || 'Group Team';
-  const projectName = result?.recommendation || 'Community Design System';
+  const projectName = result?.recommendation || store.projectName || '';
 
   function generateMarkdownReport(): string {
     if (!result) return '';
@@ -230,16 +230,30 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
         </div>
 
         {/* Winner Hero Card */}
-        <div className="enterprise-card rounded-2xl p-6 border border-slate-200 relative overflow-hidden bg-white shadow-sm">
-          <div className="flex items-start justify-between gap-4 flex-wrap mb-4 relative z-10">
+        <div className="enterprise-card rounded-2xl p-6 border border-slate-200 relative overflow-hidden bg-white shadow-sm space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap relative z-10">
             <div>
-              <span className="text-[10px] font-extrabold text-teal-800 uppercase tracking-widest bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                Recommended Project
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-extrabold text-teal-800 uppercase tracking-widest bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                  Recommended Project
+                </span>
+                {result.projectDetails?.isUnique && (
+                  <span className="text-[10px] font-extrabold text-purple-800 uppercase tracking-widest bg-purple-50 px-2 py-0.5 rounded border border-purple-200 flex items-center gap-1">
+                    ✨ Tailored Unique Concept
+                  </span>
+                )}
+              </div>
               <h1 className="text-3xl font-extrabold text-slate-900 mt-2">{result.recommendation}</h1>
-              <span className="inline-block mt-2 text-xs font-mono bg-slate-100 text-teal-800 px-2.5 py-0.5 rounded-full border border-slate-200 font-bold">
-                {result.candidateId}
-              </span>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className="text-xs font-mono bg-slate-100 text-teal-800 px-2.5 py-0.5 rounded-full border border-slate-200 font-bold">
+                  {result.candidateId}
+                </span>
+                {result.projectDetails?.domain && (
+                  <span className="text-xs text-slate-600 font-medium bg-slate-50 px-2.5 py-0.5 rounded-full border border-slate-200">
+                    📂 {result.projectDetails.domain}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="text-right">
@@ -249,6 +263,40 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
               </span>
             </div>
           </div>
+
+          {result.projectDetails?.description && (
+            <p className="text-sm text-slate-700 leading-relaxed font-medium bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
+              {result.projectDetails.description}
+            </p>
+          )}
+
+          {result.projectDetails?.problem && (
+            <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/70 text-xs text-amber-950 space-y-1">
+              <p className="font-extrabold uppercase tracking-wider text-[10px] text-amber-800">Problem & Target Need</p>
+              <p>{result.projectDetails.problem}</p>
+            </div>
+          )}
+
+          {result.projectDetails && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs pt-1">
+              <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Min Hours / Wk</span>
+                <span className="font-extrabold text-slate-800">{result.projectDetails.minHoursPerWeek} hrs</span>
+              </div>
+              <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Estimated Cost</span>
+                <span className="font-extrabold text-slate-800">
+                  {result.projectDetails.costPerMember > 0 ? `$${result.projectDetails.costPerMember} / member` : 'Free / Open Source'}
+                </span>
+              </div>
+              <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 col-span-2 sm:col-span-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Required Stack</span>
+                <span className="font-bold text-teal-800 text-[11px] font-mono truncate block">
+                  {result.projectDetails.requiredSkills.join(', ')}
+                </span>
+              </div>
+            </div>
+          )}
 
           {result.runnerUp && (
             <p className="text-xs text-slate-500 pt-3 border-t border-slate-100">
@@ -303,6 +351,7 @@ ${result.explanation.map((e) => `- ${e}`).join('\n')}
             members={displayMembers}
             preferencesMap={session.preferencesMap}
             projectName={projectName}
+            customRequiredSkills={result.projectDetails?.requiredSkills}
           />
         </div>
 

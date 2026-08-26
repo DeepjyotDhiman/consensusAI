@@ -1,4 +1,4 @@
-import type { Conflict } from "@consensus/shared";
+import type { Conflict, TeamSkillCoverage, ProjectDetails } from "@consensus/shared";
 export interface ExplanationInput {
     recommendation: string;
     runnerUp: string;
@@ -8,6 +8,8 @@ export interface ExplanationInput {
     roleAllocation: Record<string, string>;
     conflicts: Conflict[];
     priorities?: Record<string, string[]>;
+    skillCoverage?: TeamSkillCoverage;
+    projectDetails?: ProjectDetails;
 }
 export declare function generate(output: ExplanationInput, members: Array<{
     userId: string;

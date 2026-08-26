@@ -1,3 +1,11 @@
+import {
+  classifySkillMatch,
+  normalizeSkill,
+  allocateProjectRoles,
+  type SkillMatchTier,
+  type MemberRoleAssignment,
+} from '@consensus/shared';
+
 export interface ProjectSkillProfile {
   projectName: string;
   requiredSkills: string[];
@@ -6,16 +14,116 @@ export interface ProjectSkillProfile {
 }
 
 export const REAL_WORLD_PROJECT_SKILL_MAP: Record<string, ProjectSkillProfile> = {
-  'EduBot': {
-    projectName: 'EduBot AI Chatbot',
-    requiredSkills: ['Python', 'NLP', 'FastAPI', 'React'],
+  'AI Accessibility Tool': {
+    projectName: 'AI Accessibility Tool',
+    requiredSkills: ['Machine Learning', 'Python', 'Data Analysis'],
     roleMapping: {
-      python: 'AI Model & Core Backend Engineer',
-      nlp: 'NLP & Intent Classification Lead',
-      fastapi: 'API Gateway Developer',
-      react: 'Chat Interface Developer',
+      'machine learning': 'ML & Speech Model Lead',
+      python: 'Backend Accessibility Engineer',
+      'data analysis': 'Model Performance Analyst',
+      react: 'Adaptive Interface Developer',
+    },
+    defaultRole: 'Accessibility AI Specialist',
+  },
+  'Community Design System': {
+    projectName: 'Community Design System',
+    requiredSkills: ['React', 'TypeScript', 'CSS', 'UI Design'],
+    roleMapping: {
+      react: 'Component Library Architect',
+      typescript: 'Design System TypeScript Lead',
+      css: 'Design Tokens & CSS Specialist',
+      'ui design': 'UI/UX Visual Lead',
+      figma: 'Figma Token Specialist',
+    },
+    defaultRole: 'Design System Contributor',
+  },
+  'SecureVault': {
+    projectName: 'SecureVault',
+    requiredSkills: ['Network Security', 'Python', 'Cryptography'],
+    roleMapping: {
+      'network security': 'Security Architecture Lead',
+      python: 'Core Vault Backend Engineer',
+      cryptography: 'Zero-Knowledge Crypto Specialist',
+      linux: 'Hardened Infrastructure Lead',
+    },
+    defaultRole: 'Security & Systems Engineer',
+  },
+  'CityData Dashboard': {
+    projectName: 'CityData Dashboard',
+    requiredSkills: ['SQL', 'Data Visualization', 'PostgreSQL'],
+    roleMapping: {
+      sql: 'Data Pipeline & Query Lead',
+      'data visualization': 'Visualization & Maps Lead',
+      postgresql: 'Database Architect',
+      react: 'Dashboard Frontend Engineer',
+    },
+    defaultRole: 'Data Platform Developer',
+  },
+  'PeerSupport Platform': {
+    projectName: 'PeerSupport Platform',
+    requiredSkills: ['React', 'Project Management', 'Community Outreach'],
+    roleMapping: {
+      react: 'Support Platform Frontend Lead',
+      'project management': 'Product & Delivery Manager',
+      'community outreach': 'Community & Volunteer Lead',
+      'ui design': 'Empathy-Driven UX Designer',
+    },
+    defaultRole: 'Platform Contributor',
+  },
+  'EduBot': {
+    projectName: 'EduBot',
+    requiredSkills: ['Machine Learning', 'Python', 'React'],
+    roleMapping: {
+      'machine learning': 'Adaptive Learning ML Lead',
+      python: 'Conversational AI Backend Engineer',
+      react: 'Student Chat UI Developer',
+      fastapi: 'Tutoring API Lead',
     },
     defaultRole: 'AI Feature Developer',
+  },
+  'OpenBudget': {
+    projectName: 'OpenBudget',
+    requiredSkills: ['React', 'TypeScript', 'Data Visualization', 'SQL'],
+    roleMapping: {
+      react: 'Financial Visualization UI Lead',
+      typescript: 'Full-Stack TypeScript Engineer',
+      'data visualization': 'Treemap & Chart Specialist',
+      sql: 'Public Ledger Query Specialist',
+    },
+    defaultRole: 'Open Data Engineer',
+  },
+  'ThreatSense': {
+    projectName: 'ThreatSense',
+    requiredSkills: ['Network Security', 'Machine Learning', 'Python', 'Linux'],
+    roleMapping: {
+      'network security': 'Packet Inspection Lead',
+      'machine learning': 'Anomaly Detection ML Lead',
+      python: 'Detection Engine Developer',
+      linux: 'Systems & Kernel Specialist',
+    },
+    defaultRole: 'Intrusion Detection Engineer',
+  },
+  'HealthTracker': {
+    projectName: 'HealthTracker',
+    requiredSkills: ['SQL', 'Data Analysis', 'Data Visualization'],
+    roleMapping: {
+      sql: 'Health Analytics Database Lead',
+      'data analysis': 'Epidemiological Data Analyst',
+      'data visualization': 'Trend Visualisation Specialist',
+      react: 'Public Health UI Developer',
+    },
+    defaultRole: 'Health Informatics Developer',
+  },
+  'CollabSpace': {
+    projectName: 'CollabSpace',
+    requiredSkills: ['React', 'TypeScript', 'CSS', 'Project Management'],
+    roleMapping: {
+      react: 'Canvas & Realtime UI Architect',
+      typescript: 'WebSocket & State Lead',
+      css: 'Interactive Styling Specialist',
+      'project management': 'Sprint & Collaboration Manager',
+    },
+    defaultRole: 'Real-Time Systems Developer',
   },
   'E-commerce': {
     projectName: 'E-commerce Platform',
@@ -29,17 +137,6 @@ export const REAL_WORLD_PROJECT_SKILL_MAP: Record<string, ProjectSkillProfile> =
     },
     defaultRole: 'E-commerce Developer',
   },
-  'Portfolio': {
-    projectName: 'Portfolio Website',
-    requiredSkills: ['HTML', 'CSS', 'JavaScript', 'Figma'],
-    roleMapping: {
-      html: 'Semantic Markup & DOM Architect',
-      css: 'CSS Animations & Styling Specialist',
-      javascript: 'Client-Side Interactions Lead',
-      figma: 'UI/UX Visual Designer',
-    },
-    defaultRole: 'Web Developer',
-  },
   'Mobile App': {
     projectName: 'Cross-Platform Mobile App',
     requiredSkills: ['Flutter', 'Firebase', 'Dart', 'UI/UX'],
@@ -50,18 +147,6 @@ export const REAL_WORLD_PROJECT_SKILL_MAP: Record<string, ProjectSkillProfile> =
       'ui/ux': 'Mobile UX Designer',
     },
     defaultRole: 'Mobile Engineer',
-  },
-  'Design System': {
-    projectName: 'Enterprise Design System',
-    requiredSkills: ['Figma', 'UI/UX', 'CSS', 'React', 'TypeScript'],
-    roleMapping: {
-      figma: 'Figma Token Specialist',
-      'ui/ux': 'UI/UX System Lead',
-      css: 'CSS Tokens Engineer',
-      react: 'Component Library Developer',
-      typescript: 'TypeScript Type Safety Lead',
-    },
-    defaultRole: 'Design System Contributor',
   },
   'SaaS Platform': {
     projectName: 'SaaS Web Application',
@@ -75,41 +160,15 @@ export const REAL_WORLD_PROJECT_SKILL_MAP: Record<string, ProjectSkillProfile> =
     },
     defaultRole: 'SaaS Platform Developer',
   },
-  'Community Design System': {
-    projectName: 'Community Design System',
-    requiredSkills: ['React', 'TypeScript', 'UI/UX Design', 'Figma', 'CSS', 'Accessibility'],
-    roleMapping: {
-      react: 'React Component Architect',
-      typescript: 'TypeScript Design System Lead',
-      'ui/ux': 'UI/UX Lead Designer',
-      figma: 'Figma Layout Specialist',
-      css: 'CSS & Design Tokens Engineer',
-      accessibility: 'A11y Compliance Specialist',
-    },
-    defaultRole: 'Design System Contributor',
-  },
 };
 
-const DEFAULT_PROFILE: ProjectSkillProfile = {
-  projectName: 'Community Design System',
-  requiredSkills: ['React', 'TypeScript', 'UI/UX Design', 'Figma', 'CSS', 'Accessibility'],
-  roleMapping: {
-    react: 'React Component Architect',
-    typescript: 'TypeScript Design System Lead',
-    'ui/ux': 'UI/UX Lead Designer',
-    figma: 'Figma Layout Specialist',
-    css: 'CSS & Design Tokens Engineer',
-    accessibility: 'A11y Compliance Specialist',
-  },
-  defaultRole: 'Design System Contributor',
-};
-
-export function getProjectProfile(projectName?: string): ProjectSkillProfile {
-  if (!projectName) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['Community Design System'] ?? DEFAULT_PROFILE;
+export function getProjectProfile(projectName?: string | null): ProjectSkillProfile | null {
+  if (!projectName || !projectName.trim()) {
+    return null;
   }
 
-  const normInput = normalizeSkill(projectName);
+  const cleanName = projectName.trim();
+  const normInput = normalizeSkill(cleanName);
   const keys = Object.keys(REAL_WORLD_PROJECT_SKILL_MAP);
 
   // Exact or containment match against known key dictionary
@@ -122,256 +181,139 @@ export function getProjectProfile(projectName?: string): ProjectSkillProfile {
     return REAL_WORLD_PROJECT_SKILL_MAP[matchedKey]!;
   }
 
-  // Fuzzy keyword matching for user inputs
-  if (normInput.includes('shop') || normInput.includes('store') || normInput.includes('commerce') || normInput.includes('cart')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['E-commerce'] ?? DEFAULT_PROFILE;
+  // Dynamic project profile generation for custom unique project names
+  const inferredSkills: string[] = [];
+  const roleMapping: Record<string, string> = {};
+
+  if (normInput.includes('ai') || normInput.includes('ml') || normInput.includes('nlp') || normInput.includes('vision') || normInput.includes('data') || normInput.includes('bot')) {
+    inferredSkills.push('Python', 'Machine Learning', 'Data Analysis');
+    roleMapping['machine learning'] = `${cleanName} ML Engineer`;
+    roleMapping['python'] = `${cleanName} Backend Developer`;
+    roleMapping['data analysis'] = `${cleanName} Data Analyst`;
+  }
+  if (normInput.includes('mobile') || normInput.includes('app') || normInput.includes('flutter') || normInput.includes('ios') || normInput.includes('android')) {
+    inferredSkills.push('Flutter', 'Firebase', 'UI Design');
+    roleMapping['flutter'] = `${cleanName} Mobile Lead`;
+    roleMapping['firebase'] = `${cleanName} Cloud Engineer`;
+    roleMapping['ui design'] = `${cleanName} Mobile UX Designer`;
+  }
+  if (normInput.includes('security') || normInput.includes('auth') || normInput.includes('crypto') || normInput.includes('shield') || normInput.includes('vault')) {
+    inferredSkills.push('Network Security', 'Cryptography', 'Python');
+    roleMapping['network security'] = `${cleanName} Security Lead`;
+    roleMapping['cryptography'] = `${cleanName} Cryptography Engineer`;
+    roleMapping['python'] = `${cleanName} Backend Security Dev`;
   }
 
-  if (normInput.includes('bot') || normInput.includes('ai') || normInput.includes('chat') || normInput.includes('nlp') || normInput.includes('llm')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['EduBot'] ?? DEFAULT_PROFILE;
+  // Ensure baseline full-stack stack if none matched specifically
+  if (inferredSkills.length === 0) {
+    inferredSkills.push('React', 'TypeScript', 'Node.js', 'UI Design', 'PostgreSQL');
+    roleMapping['react'] = `${cleanName} Frontend Lead`;
+    roleMapping['typescript'] = `${cleanName} TypeScript Architect`;
+    roleMapping['node.js'] = `${cleanName} Backend Engineer`;
+    roleMapping['ui design'] = `${cleanName} UI/UX Designer`;
+    roleMapping['postgresql'] = `${cleanName} Database Engineer`;
   }
 
-  if (normInput.includes('portfolio') || normInput.includes('personal') || normInput.includes('resume')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['Portfolio'] ?? DEFAULT_PROFILE;
-  }
-
-  if (normInput.includes('mobile') || normInput.includes('flutter') || normInput.includes('ios') || normInput.includes('android')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['Mobile App'] ?? DEFAULT_PROFILE;
-  }
-
-  if (normInput.includes('design') || normInput.includes('figma') || normInput.includes('ui') || normInput.includes('ux')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['Design System'] ?? DEFAULT_PROFILE;
-  }
-
-  if (normInput.includes('saas') || normInput.includes('dashboard') || normInput.includes('cloud') || normInput.includes('next')) {
-    return REAL_WORLD_PROJECT_SKILL_MAP['SaaS Platform'] ?? DEFAULT_PROFILE;
-  }
-
-  if (normInput.includes('web') || normInput.includes('site') || normInput.includes('frontend')) {
-    return {
-      projectName,
-      requiredSkills: ['React', 'CSS', 'HTML', 'JavaScript', 'UI/UX'],
-      roleMapping: {
-        react: `${projectName} React Lead`,
-        css: `${projectName} Styling Engineer`,
-        html: `${projectName} HTML Specialist`,
-        javascript: `${projectName} JS Developer`,
-        'ui/ux': `${projectName} UI/UX Designer`,
-      },
-      defaultRole: `${projectName} Frontend Engineer`,
-    };
-  }
-
-  // Fallback for custom unique project names
   return {
-    projectName,
-    requiredSkills: ['React', 'Node.js', 'TypeScript', 'Tailwind', 'Python'],
-    roleMapping: {
-      react: `${projectName} Frontend Lead`,
-      'node.js': `${projectName} Backend Lead`,
-      typescript: `${projectName} Systems Architect`,
-      tailwind: `${projectName} UI Specialist`,
-      python: `${projectName} Data Analyst`,
-    },
-    defaultRole: `${projectName} Developer`,
+    projectName: cleanName,
+    requiredSkills: Array.from(new Set(inferredSkills)),
+    roleMapping,
+    defaultRole: `${cleanName} Contributor`,
   };
 }
 
-/**
- * Skill Alias Dictionary: Groups of synonymous or closely related skills
- * that should be treated as interchangeable for role matching and task allocation.
- */
-export const SKILL_ALIAS_GROUPS: string[][] = [
-  ['ui/ux', 'ui design', 'ux design', 'ui', 'ux', 'user interface', 'user experience', 'visual design', 'design system', 'ui/ux design', 'product design'],
-  ['node.js', 'nodejs', 'node', 'express', 'express.js', 'expressjs', 'backend', 'backend developer', 'api', 'rest api', 'graphql'],
-  ['react', 'react native', 'react.js', 'reactjs', 'frontend', 'frontend developer', 'angular', 'vue', 'vuejs', 'svelte', 'web developer'],
-  ['angular', 'angularjs', 'vue', 'vuejs', 'svelte', 'frontend', 'react', 'typescript'],
-  ['python', 'python3', 'py', 'django', 'fastapi', 'flask', 'ai model', 'backend'],
-  ['go', 'golang', 'rust', 'c++', 'cpp', 'c#', 'java', 'spring', 'backend', 'systems'],
-  ['typescript', 'ts', 'type script', 'javascript', 'js'],
-  ['javascript', 'js', 'es6', 'ecmascript', 'frontend'],
-  ['html', 'html5', 'markup', 'dom', 'web'],
-  ['postgresql', 'postgres', 'sql', 'mongodb', 'mongo', 'database', 'db', 'prisma', 'sql/db', 'mysql', 'nosql', 'sqlite'],
-  ['flutter', 'dart', 'cross-platform', 'mobile app', 'android', 'ios', 'swift', 'kotlin'],
-  ['firebase', 'firestore', 'cloud database', 'auth'],
-  ['next.js', 'nextjs', 'next', 'full-stack', 'fullstack'],
-  ['css', 'css3', 'styling', 'tailwind', 'tailwindcss', 'styles', 'css tokens', 'sass', 'scss', 'bootstrap'],
-  ['figma', 'sketch', 'adobe xd', 'wireframing', 'mockups', 'ui/ux'],
-  ['nlp', 'ai', 'llm', 'machine learning', 'ml', 'intent classification', 'natural language processing', 'deep learning', 'data science'],
-  ['docker', 'kubernetes', 'k8s', 'cloud', 'devops', 'aws', 'gcp', 'azure', 'ci/cd', 'linux'],
-  ['stripe', 'payments', 'payment', 'checkout', 'billing'],
-  ['accessibility', 'a11y', 'wcag'],
-];
-
-export function normalizeSkill(str: string): string {
-  if (!str) return '';
-  return str.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-/**
- * Calculates Levenshtein edit distance between two strings.
- */
-export function getLevenshteinDistance(a: string, b: string): number {
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
-
-  const matrix: number[][] = [];
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= a.length; j++) {
-    if (!matrix[0]) matrix[0] = [];
-    matrix[0][j] = j;
-  }
-
-  for (let i = 1; i <= b.length; i++) {
-    const row = matrix[i] ?? [];
-    const prevRow = matrix[i - 1] ?? [];
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        row[j] = prevRow[j - 1] ?? 0;
-      } else {
-        row[j] = Math.min(
-          (prevRow[j - 1] ?? 0) + 1, // substitution
-          (row[j - 1] ?? 0) + 1,     // insertion
-          (prevRow[j] ?? 0) + 1      // deletion
-        );
-      }
-    }
-    matrix[i] = row;
-  }
-  return matrix[b.length]?.[a.length] ?? 0;
-}
-
-/**
- * Checks if two strings are fuzzy typo matches within threshold (Levenshtein distance <= 2).
- */
-export function isTypoMatch(skillA: string, skillB: string, maxDistance: number = 2): boolean {
-  const normA = normalizeSkill(skillA);
-  const normB = normalizeSkill(skillB);
-  if (!normA || !normB) return false;
-
-  // Short terms (length <= 4) require distance <= 1 to avoid false positives (e.g., 'ui' vs 'ux')
-  const threshold = Math.min(normA.length, normB.length) <= 4 ? 1 : maxDistance;
-  return getLevenshteinDistance(normA, normB) <= threshold;
-}
-
-/**
- * Checks if two skill terms match directly or via synonymous skill aliases.
- */
-export function areSkillsAliased(skillA: string, skillB: string): boolean {
-  const normA = normalizeSkill(skillA);
-  const normB = normalizeSkill(skillB);
-  if (!normA || !normB) return false;
-
-  return SKILL_ALIAS_GROUPS.some((group) => {
-    const normGroup = group.map(normalizeSkill);
-    const hasA = normGroup.some((g) => normA === g || normA.includes(g) || g.includes(normA));
-    const hasB = normGroup.some((g) => normB === g || normB.includes(g) || g.includes(normB));
-    return hasA && hasB;
-  });
-}
-
-/**
- * Intelligent skill comparison supporting exact match, string containment, skill aliases, and Levenshtein typo tolerance.
- */
-export function isSkillMatch(skillA: string, skillB: string): boolean {
-  const normA = normalizeSkill(skillA);
-  const normB = normalizeSkill(skillB);
-  if (!normA || !normB) return false;
-
-  // 1. Direct equality or substring containment
-  if (normA === normB || normA.includes(normB) || normB.includes(normA)) {
-    return true;
-  }
-
-  // 2. Synonymous skill alias clusters
-  if (areSkillsAliased(skillA, skillB)) {
-    return true;
-  }
-
-  // 3. Typo tolerance matching (Levenshtein distance <= 2)
-  return isTypoMatch(skillA, skillB, 2);
-}
-
 export function computeTaskAssignments(
-  projectName: string,
+  projectName: string | undefined | null,
   members: Array<{ id: string; userId: string; displayName: string; avatarColor?: string }>,
-  preferencesMap: Record<string, any>
+  preferencesMap: Record<string, any>,
+  customRequiredSkills?: string[]
 ) {
   const profile = getProjectProfile(projectName);
-  const assigned: Array<{
-    member: any;
-    task: string;
-    matchedSkill: string;
-    roleName: string;
-  }> = [];
-  const standby: any[] = [];
-  const teamSkillsSet = new Set<string>();
-  const claimedRequiredSkills = new Set<string>();
+  if (!profile && (!customRequiredSkills || customRequiredSkills.length === 0)) {
+    return {
+      profile: null,
+      assigned: [],
+      standby: members,
+      missingSkills: [],
+      transferableSkills: [],
+      roleAssignments: [] as MemberRoleAssignment[],
+    };
+  }
 
-  members.forEach((member) => {
-    const pref = preferencesMap[member.id] || preferencesMap[member.userId];
-    let memberSkills: string[] = [];
+  const effectiveTitle = projectName?.trim() || profile?.projectName || 'Project';
+  const requiredSkills =
+    customRequiredSkills && customRequiredSkills.length > 0
+      ? customRequiredSkills
+      : profile?.requiredSkills || [];
+
+  const memberProfiles = members.map((m) => {
+    const pref = preferencesMap[m.id] || preferencesMap[m.userId];
+    let skills: string[] = [];
     if (Array.isArray(pref?.skills)) {
-      memberSkills = pref.skills.map(String);
+      skills = pref.skills.map(String);
     } else if (typeof pref?.skills === 'string') {
-      memberSkills = pref.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      skills = pref.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
     }
 
-    memberSkills.forEach((s) => teamSkillsSet.add(s));
-
-    // Priority 1: Pick an UNCLAIMED required skill that matches this member's skills (or aliases)
-    let selectedReqSkill = profile.requiredSkills.find(
-      (req) => !claimedRequiredSkills.has(req) && memberSkills.some((s) => isSkillMatch(s, req))
-    );
-
-    // Priority 2: If all matching required skills are claimed, pick ANY matching required skill (or alias)
-    if (!selectedReqSkill) {
-      selectedReqSkill = profile.requiredSkills.find(
-        (req) => memberSkills.some((s) => isSkillMatch(s, req))
-      );
+    let learningGoals: string[] = [];
+    if (Array.isArray(pref?.learningGoals)) {
+      learningGoals = pref.learningGoals.map(String);
+    } else if (typeof pref?.learningGoals === 'string') {
+      learningGoals = pref.learningGoals.split(',').map((s: string) => s.trim()).filter(Boolean);
     }
 
-    if (selectedReqSkill) {
-      claimedRequiredSkills.add(selectedReqSkill);
-      const matchedMemberSkill =
-        memberSkills.find((s) => isSkillMatch(s, selectedReqSkill!)) || selectedReqSkill;
-
-      let roleName = profile.defaultRole;
-      const normReq = normalizeSkill(selectedReqSkill);
-
-      // Resolve role name matching required skill key or member matched skill or aliases
-      for (const [key, role] of Object.entries(profile.roleMapping)) {
-        const normKey = normalizeSkill(key);
-        if (
-          normReq === normKey ||
-          normReq.includes(normKey) ||
-          normKey.includes(normReq) ||
-          isSkillMatch(matchedMemberSkill, key) ||
-          isSkillMatch(selectedReqSkill, key)
-        ) {
-          roleName = role;
-          break;
-        }
-      }
-
-      assigned.push({
-        member,
-        matchedSkill: matchedMemberSkill,
-        task: roleName,
-        roleName,
-      });
-    } else {
-      standby.push(member);
+    let interests: string[] = [];
+    if (Array.isArray(pref?.interests)) {
+      interests = pref.interests.map(String);
+    } else if (typeof pref?.interests === 'string') {
+      interests = pref.interests.split(',').map((s: string) => s.trim()).filter(Boolean);
     }
+
+    return {
+      userId: m.userId || m.id,
+      displayName: m.displayName,
+      skills,
+      learningGoals,
+      interests,
+    };
   });
 
-  // Dynamically calculate missing required skills using alias-supported comparison
-  const teamSkillsArray = Array.from(teamSkillsSet);
-  const missingSkills = profile.requiredSkills.filter((req) => {
-    return !teamSkillsArray.some((ts) => isSkillMatch(ts, req));
+  const { roleAllocation, roleAssignments, uncoveredSkills } = allocateProjectRoles(
+    {
+      title: effectiveTitle,
+      requiredSkills,
+    },
+    memberProfiles
+  );
+
+  const assignedMap = new Map(roleAssignments.map((ra) => [ra.userId, ra]));
+
+  const assigned = members.map((m) => {
+    const ra = assignedMap.get(m.userId) || assignedMap.get(m.id);
+    return {
+      member: m,
+      task: ra?.roleTitle || roleAllocation[m.userId] || roleAllocation[m.id] || 'Contributor',
+      roleName: ra?.roleTitle || roleAllocation[m.userId] || roleAllocation[m.id] || 'Contributor',
+      matchedSkill: ra?.matchedSkill || '',
+      matchTier: ra?.matchTier || ('NONE' as SkillMatchTier),
+      matchWeight: ra?.matchTier === 'DIRECT' ? 1.0 : ra?.matchTier === 'CLOSE' ? 0.75 : ra?.matchTier === 'ADJACENT' ? 0.45 : 0,
+      responsibilities: ra?.responsibilities || [],
+      rationale: ra?.rationale || '',
+      rampUpAreas: ra?.rampUpAreas || [],
+    };
   });
 
-  return { profile, assigned, standby, missingSkills };
+  return {
+    profile: profile || {
+      projectName: effectiveTitle,
+      requiredSkills,
+      roleMapping: {},
+      defaultRole: 'Contributor',
+    },
+    assigned,
+    standby: [],
+    missingSkills: uncoveredSkills,
+    transferableSkills: [],
+    roleAssignments,
+  };
 }
