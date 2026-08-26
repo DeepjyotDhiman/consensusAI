@@ -1,18 +1,21 @@
 # ConsensusAI — Implementation Plan
 
-> **Revision 3** — Final implementation completed with Campus Life & Student AI alignment.
+> **Revision 4** — Complete MVP with Unique Project Synthesis, Advanced Semantic Skill Matcher & 100% Passing 71-Test E2E Suite.
 > **Positioning**: AI-powered Campus Collaboration & Consensus Platform.
+> **AI Architecture & Code Generation**: Built and structured with **IBM BOB**. See [IBM_BOB.md](IBM_BOB.md).
 > **Hackathon Alignment**:
 > - **Track**: Student AI
 > - **Use Case**: AI for Campus Life / Hyperlocal Innovation
 > - **Application**: AI-assisted student team formation, project selection, and collaborative decision-making.
-> Key decisions: pnpm monorepo · auto-blur/change triggers recalculation · result as dashboard summary panel + full detail page · single write path through Socket.IO · Campus Decision Candidates architecture · `useGroupSession` single hook · consensus score penalises outliers · `OllamaConsensusEngine` with automatic fallback seam to `MockConsensusEngine` · custom member profile creation · Candidate Archetype Catalog modal · Cyber-glass design system & Markdown report export.
+> Key decisions: pnpm monorepo · auto-blur/change triggers recalculation · result as dashboard summary panel + full detail page · single write path through Socket.IO · Campus Decision Candidates architecture · `useGroupSession` single hook · consensus score penalises outliers · `OllamaConsensusEngine` with automatic fallback seam to `MockConsensusEngine` · custom member profile creation · Candidate Archetype Catalog modal · Unique Project Synthesizer for bespoke projects · Advanced Semantic Skill Matcher with taxonomy aliases & 100% role coverage · Leader authorization & all-submitted auto-trigger · Cyber-glass design system & Markdown report export.
 
 ---
 
 ## Top-Level Overview
 
 Build a fully local, free-to-run platform called **ConsensusAI** — an **AI-powered Campus Collaboration & Consensus Platform**.
+
+ConsensusAI's base architecture, monorepo scaffolding, mathematical consensus scoring formula, real-time Socket.IO synchronization, and 71-test validation suite were engineered and generated with **IBM BOB**.
 
 Students on campus frequently collaborate in teams but have different skills, interests, availability, budgets, and learning goals. ConsensusAI helps them reach an AI-assisted, transparent group decision instead of relying on informal discussion. While team project selection serves as the primary campus-life collaboration use case, the underlying architecture evaluates **Campus Decision Candidates** against multi-member preferences, detects conflicts, and delivers transparent consensus recommendations with trade-off explanations in real time across all connected browsers.
 
@@ -21,6 +24,7 @@ Students on campus frequently collaborate in teams but have different skills, in
 **Non-goals for MVP:** Production auth, external paid APIs, unrelated campus life utilities (no roommate matcher, no event discovery, no cafeteria recommender, no campus navigation — focusing purely on collaborative team decision-making).
 
 **Architecture decisions locked:**
+- AI Engineering & Scaffolding Platform: **IBM BOB** (for codebase generation, service design, algorithms, and test synthesis)
 - pnpm workspaces (better symlink/hoisting on Windows; signals code quality to judges)
 - Preference form auto-saves on field **blur/change** → triggers consensus recalculation server-side
 - Consensus result shown as **summary panel** embedded in `/group/:id` dashboard AND as **full detail page** at `/group/:id/result`
@@ -28,6 +32,8 @@ Students on campus frequently collaborate in teams but have different skills, in
 - Campus Decision Candidates stored as a **TypeScript constant file** + served via REST endpoint `GET /api/v1/candidates`
 - Custom member profile registration via `POST /api/v1/users`
 - Candidate Catalog Explorer modal (`CandidateCatalogModal.tsx`)
+- Unique Project Synthesizer (`UniqueProjectSynthesizer.ts`) dynamically generates bespoke project recommendations with milestones, risks, and tailored role allocations
+- Advanced Semantic Skill Matcher (`skillMatcher.ts`) canonicalizes tech aliases and optimizes role skill coverage
 - `useGroupSession` **single hook** owns socket connection, room join, and live store state
 - Consensus score = `mean(memberScores) − 0.5 × stddev(memberScores)` (penalises outlier dissatisfaction)
 - Conflicts embedded in `consensus:updated` payload — **no separate** `group:conflict_detected` event
@@ -46,8 +52,11 @@ consensusAI/
 │   │   │   │   ├── group.ts
 │   │   │   │   ├── user.ts
 │   │   │   │   ├── preference.ts
-│   │   │   │   ├── consensus.ts        ← Candidate type lives here too
+│   │   │   │   ├── consensus.ts        ← Candidate & Synthesis types live here
+│   │   │   │   ├── socket.ts           ← Typed Socket.IO event payloads
 │   │   │   │   └── index.ts
+│   │   │   ├── utils/
+│   │   │   │   └── skillMatcher.ts     ← Semantic alias mapping & role coverage
 │   │   │   └── index.ts
 │   │   ├── tsconfig.json
 │   │   └── package.json
@@ -64,29 +73,39 @@ consensusAI/
 │   │   │   │   ├── PreferenceService.ts
 │   │   │   │   ├── ConflictAnalyzer.ts
 │   │   │   │   ├── ScoringEngine.ts
-│   │   │   │   └── ExplanationGenerator.ts
+│   │   │   │   ├── ExplanationGenerator.ts
+│   │   │   │   ├── UniqueProjectSynthesizer.ts
+│   │   │   │   └── authService.ts
 │   │   │   ├── consensus/
 │   │   │   │   ├── ConsensusEngine.ts          ← interface
 │   │   │   │   ├── MockConsensusEngine.ts      ← deterministic algorithm
-│   │   │   │   └── OllamaConsensusEngine.ts    ← LLM engine with auto fallback
+│   │   │   │   ├── OllamaConsensusEngine.ts    ← LLM engine with auto fallback
+│   │   │   │   └── README.md
 │   │   │   ├── routes/
+│   │   │   │   ├── auth.ts
 │   │   │   │   ├── groups.ts
 │   │   │   │   ├── preferences.ts              ← GET only; writes via socket
 │   │   │   │   ├── consensus.ts                ← GET latest only
 │   │   │   │   ├── candidates.ts               ← GET candidates catalog
 │   │   │   │   └── users.ts                    ← GET/POST custom member profiles
 │   │   │   ├── middleware/
+│   │   │   │   ├── auth.ts
 │   │   │   │   ├── errorHandler.ts
 │   │   │   │   └── validate.ts
 │   │   │   ├── socket/
 │   │   │   │   └── handlers.ts
 │   │   │   └── index.ts
 │   │   ├── tests/
-│   │   │   ├── preference.test.ts
-│   │   │   ├── conflict.test.ts
-│   │   │   ├── scoring.test.ts
+│   │   │   ├── auth.test.ts
 │   │   │   ├── consensus.test.ts
-│   │   │   └── realtime.test.ts
+│   │   │   ├── conflict.test.ts
+│   │   │   ├── e2eJourney.test.ts
+│   │   │   ├── explanation.test.ts
+│   │   │   ├── preference.test.ts
+│   │   │   ├── realtime.test.ts
+│   │   │   ├── roleAllocation.test.ts
+│   │   │   ├── scoring.test.ts
+│   │   │   └── uniqueProject.test.ts
 │   │   ├── tsconfig.json
 │   │   └── package.json
 │   │
@@ -103,6 +122,8 @@ consensusAI/
 │       │   │   ├── ExplanationPanel.tsx
 │       │   │   ├── ConsensusSummaryPanel.tsx   ← embedded in dashboard
 │       │   │   ├── CandidateCatalogModal.tsx   ← candidate archetypes modal
+│       │   │   ├── AiThinkingTerminal.tsx      ← real-time pipeline execution display
+│       │   │   ├── LeaderboardModal.tsx        ← team rankings modal
 │       │   │   └── RealtimeBadge.tsx
 │       │   ├── pages/
 │       │   │   ├── Landing.tsx                  ← cyber-glass hero & project preview
@@ -114,6 +135,8 @@ consensusAI/
 │       │   │   └── useGroupSession.ts           ← single hook owns all state + socket
 │       │   ├── store/
 │       │   │   └── groupStore.ts
+│       │   ├── context/
+│       │   │   └── AuthContext.tsx
 │       │   ├── App.tsx
 │       │   └── main.tsx
 │       ├── tsconfig.json
@@ -652,24 +675,40 @@ All connected browsers receive both events
 
 ---
 
-### Sub-Task 10 — Tests
-**Status:** `[ ] pending`
+### Sub-Task 10 — Test Suite (10 Files / 71 Tests Passing)
+**Status:** `[x] done`
 
-**Intent:** Validate the core pipeline with a focused test suite using in-memory SQLite.
+**Intent:** Validate the full multi-tier consensus pipeline, authentication, conflict detection, real-time Socket.IO flows, and role allocation using in-memory SQLite and mock network adapters.
 
 **Expected Outcomes:**
-- `pnpm test` in `packages/server` runs all tests green
-- Coverage: preference CRUD, all 3 conflict rules, all 5 scoring sub-scores + stddev penalty, full consensus pipeline, socket preference-update → broadcast
+- `pnpm test` in `packages/server` runs 71 tests across 10 test files with 100% pass rate
+- Coverage across all domains: auth, preference CRUD, all 4 conflict rules, 5-dimension scoring with stddev penalty, consensus deterministic pipeline, role allocation skill coverage, unique project synthesis, realtime socket rooms, and end-to-end journey audit
 
-**Todo List:**
-1. Add Vitest to `packages/server`; configure `vitest.config.ts` to set `DB_PATH=:memory:` env var
-2. `preference.test.ts` — upsert creates row, second upsert updates, get returns parsed JSON arrays
-3. `conflict.test.ts` — skill overlap detected, budget conflict detected, clean no-conflict case; each rule tested independently
-4. `scoring.test.ts` — score known candidate against known preferences; assert each sub-score value; assert `groupScore < averageSatisfaction` when member scores have high variance
-5. `consensus.test.ts` — full pipeline, 3-member seed input; assert: winner is deterministic across 3 runs, `groupScore ∈ [0,100]`, `roleAllocation` keys match member userIds, `explanation.length ≥ 3`
-6. `realtime.test.ts` — use `socket.io` in-memory adapter; emit `preference:update`; assert `consensus:updated` is broadcast with valid `ConsensusOutput` shape
+**Delivered Test Suites:**
+1. `e2eJourney.test.ts` (9 tests) — Complete 20-step end-to-end user journey audit: registration, group creation, member join, live socket sync, debounce auto-save, consensus calculation, greedy role allocation, Markdown export, and summary retrieval.
+2. `scoring.test.ts` (14 tests) — 5-dimension scoring engine, sub-score weights (interests 30, skills 25, availability 20, budget 15, learning 10), variance penalty, clamping, tie-breakers.
+3. `consensus.test.ts` (9 tests) — MockConsensusEngine deterministic pipeline, scoring integration, runner-up calculation, boundary handling.
+4. `realtime.test.ts` (8 tests) — Socket.IO room events, leader authorization check, preference auto-save, multi-client broadcasts, error handling.
+5. `auth.test.ts` (7 tests) — scrypt password hashing, JWT generation/verification, auth middleware.
+6. `roleAllocation.test.ts` (5 tests) — Smart role allocator, skill coverage calculation, 100% fallback skill coverage logic.
+7. `explanation.test.ts` (5 tests) — ExplanationGenerator natural language trade-off sentences, stddev spread bands, conflict rationale.
+8. `conflict.test.ts` (5 tests) — ConflictAnalyzer — all 4 conflict rules (skill overlap, budget spread, interest divergence, availability gap).
+9. `preference.test.ts` (5 tests) — PreferenceService CRUD, JSON column parsing & persistence.
+10. `uniqueProject.test.ts` (4 tests) — UniqueProjectSynthesizer bespoke project synthesis, roadmap, and custom team role specs.
 
-**Relevant Context:** `realtime.test.ts` uses the in-process Socket.IO adapter (no real TCP socket) to keep tests fast and deterministic. The test creates a server instance pointing at `:memory:` DB, connects a test client socket, emits the event, and awaits the broadcast.
+---
+
+### Sub-Task 11 — Unique Project Synthesis, Semantic Skill Taxonomy, 100% Role Coverage & E2E Journey Audit
+**Status:** `[x] done`
+
+**Intent:** Introduce AI synthesis of custom project proposals when catalog archetypes require deeper customization, provide fuzzy semantic skill matching with taxonomy mapping, guarantee 100% role allocation coverage, and implement leader permissions with all-submitted auto-triggering.
+
+**Expected Outcomes:**
+- `UniqueProjectSynthesizer.ts`: Synthesizes bespoke project proposals based on group skills, interests, and budget, complete with custom architecture, milestone roadmaps, risk factors, and custom role specs.
+- `skillMatcher.ts`: Multi-alias canonicalization (e.g. JS/TypeScript, PyTorch/TensorFlow/ML, Docker/Kubernetes/DevOps, Figma/UI/UX, SQL/PostgreSQL, Solidity/Web3) and domain taxonomy mapping.
+- Enhanced Role Allocator: Computes individual match percentages and deliverables per member, with fallback allocation ensuring 100% skill coverage.
+- Socket Permissions & Auto-Trigger: `consensus:generate` leader check prevents unauthorized regeneration; automatically triggers consensus recalculation when all group members submit preferences (`hasSubmitted: true`).
+- UI Enhancements: `CandidateCatalogModal`, `AiThinkingTerminal`, `LeaderboardModal`, and full Markdown report export.
 
 ---
 
@@ -684,4 +723,6 @@ All connected browsers receive both events
 7. **Sub-Task 7** — Frontend Foundation *(client infrastructure)*
 8. **Sub-Task 8** — UI Pages & Components *(visible product)*
 9. **Sub-Task 9** — Demo Polish *(seed tuning + README)*
-10. **Sub-Task 10** — Tests *(validation)*
+10. **Sub-Task 10** — Test Suite (10 files / 71 tests) *(core verification)*
+11. **Sub-Task 11** — Unique Project Synthesizer, Semantic Taxonomy & E2E Journey Audit *(extended stabilization)*
+
