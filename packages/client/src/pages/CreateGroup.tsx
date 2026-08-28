@@ -23,6 +23,8 @@ export default function CreateGroup() {
       const result = await groupApi.createGroup(name.trim());
       const { group, member } = result;
       // Store creator identity
+      sessionStorage.setItem(LS_KEYS.groupId, group.id);
+      sessionStorage.setItem('consensus_groupMemberId', member.id);
       localStorage.setItem(LS_KEYS.groupId, group.id);
       localStorage.setItem('consensus_groupMemberId', member.id);
       setCreated({ groupId: group.id, joinCode: group.joinCode });

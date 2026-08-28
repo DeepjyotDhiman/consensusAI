@@ -8,7 +8,7 @@ type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 const DEBOUNCE_MS = 400;
 
-export function useGroupSession(groupId: string, userId?: string | null) {
+export function useGroupSession(groupId: string, userId?: string | null, authToken?: string | null) {
   const socketRef = useRef<AppSocket | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const store = useGroupStore();
@@ -20,7 +20,7 @@ export function useGroupSession(groupId: string, userId?: string | null) {
       return;
     }
 
-    const token = localStorage.getItem('consensus_auth_token');
+    const token = authToken || sessionStorage.getItem('consensus_auth_token') || localStorage.getItem('consensus_auth_token');
 
     const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:3001' : undefined;
 
@@ -60,6 +60,8 @@ export function useGroupSession(groupId: string, userId?: string | null) {
         const myMember = (payload.members as any[]).find((m) => m.userId === validUserId);
         if (myMember) {
           store.setCurrentUser(validUserId, myMember.id);
+          sessionStorage.setItem('consensus_userId', validUserId);
+          sessionStorage.setItem('consensus_groupMemberId', myMember.id);
           localStorage.setItem('consensus_userId', validUserId);
           localStorage.setItem('consensus_groupMemberId', myMember.id);
         }

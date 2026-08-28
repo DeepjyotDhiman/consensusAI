@@ -278,19 +278,19 @@ export default function GroupDashboard() {
     }, 2800);
   }
 
-  const effectiveUserId = auth.user?.id || store.currentUserId;
+  const effectiveUserId = auth.user?.id || store.currentUserId || sessionStorage.getItem(LS_KEYS.userId) || localStorage.getItem(LS_KEYS.userId);
 
-  // Read identity from localStorage / auth on mount
+  // Read identity from session/localStorage/auth on mount
   useEffect(() => {
-    const userId = auth.user?.id || localStorage.getItem(LS_KEYS.userId);
-    const groupMemberId = localStorage.getItem(LS_KEYS.groupMemberId);
-    if (userId && groupMemberId) {
-      store.setCurrentUser(userId, groupMemberId);
+    const userId = auth.user?.id || sessionStorage.getItem(LS_KEYS.userId) || localStorage.getItem(LS_KEYS.userId);
+    const groupMemberId = sessionStorage.getItem(LS_KEYS.groupMemberId) || localStorage.getItem(LS_KEYS.groupMemberId);
+    if (userId) {
+      store.setCurrentUser(userId, groupMemberId || '');
     }
   }, [auth.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Connect socket (hydrates members + preferencesMap + consensus)
-  const session = useGroupSession(groupId, effectiveUserId);
+  // Connect socket (hydrates members + preferencesMap + consensus) using tab's authenticated token
+  const session = useGroupSession(groupId, effectiveUserId, auth.token);
 
   // Fetch group metadata and members via REST on mount (ensures instant hydration even before socket sync)
   useEffect(() => {
@@ -319,6 +319,8 @@ export default function GroupDashboard() {
           const myMember = fetchedMembers.find((m) => m.userId === effectiveUserId);
           if (myMember) {
             store.setCurrentUser(myMember.userId, myMember.id);
+            sessionStorage.setItem(LS_KEYS.userId, myMember.userId);
+            sessionStorage.setItem(LS_KEYS.groupMemberId, myMember.id);
             localStorage.setItem(LS_KEYS.userId, myMember.userId);
             localStorage.setItem(LS_KEYS.groupMemberId, myMember.id);
           }
@@ -472,12 +474,18 @@ export default function GroupDashboard() {
             </button>
           </div>
 
-          <Link
-            to={`/join/${group?.joinCode ?? ''}`}
-            className="text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 hover:-translate-y-0.5 text-white font-bold px-3 py-1.5 rounded-lg transition-all duration-200 shadow-sm flex items-center gap-1"
-          >
-            <span>+ Add Member</span>
-          </Link>
+          {members.length < 6 ? (
+            <Link
+              to={`/join/${group?.joinCode ?? ''}`}
+              className="text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 hover:-translate-y-0.5 text-white font-bold px-3 py-1.5 rounded-lg transition-all duration-200 shadow-sm flex items-center gap-1"
+            >
+              <span>+ Add Member</span>
+            </Link>
+          ) : (
+            <span className="text-xs bg-slate-100 text-slate-500 font-bold px-3 py-1.5 rounded-lg border border-slate-200 cursor-not-allowed">
+              Team Full (6/6)
+            </span>
+          )}
 
           {auth.isAuthenticated && auth.user && (
             <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg">
@@ -516,7 +524,7 @@ export default function GroupDashboard() {
             <div className="flex items-center gap-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-teal-600 animate-ping" />
               <span className="font-bold text-teal-950">
-                Group: <strong className="text-teal-900 font-extrabold">{group.name}</strong>
+                Team: <strong className="text-teal-900 font-extrabold">{group.name}</strong>
                 {' '}· Join Code: <span className="font-mono text-teal-700 font-bold">{group.joinCode}</span>
                 {isLeader && (
                   <span className="ml-2 text-[10px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full uppercase tracking-wider">
@@ -530,7 +538,7 @@ export default function GroupDashboard() {
             {totalMembers > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-teal-700 font-semibold">
-                  {submittedCount}/{totalMembers} submitted
+                  {submittedCount}/{totalMembers} submitted ({totalMembers < 2 ? 'Need min 2 members' : totalMembers === 6 ? '6/6 Max' : `${totalMembers}/6 Members`})
                 </span>
                 <div className="w-24 h-2 bg-teal-200 rounded-full overflow-hidden">
                   <div
@@ -556,18 +564,18 @@ export default function GroupDashboard() {
                 Team Session
               </span>
               <span className="text-xs text-slate-500 font-medium">
-                {members.length} member{members.length === 1 ? '' : 's'} connected
+                {members.length}/6 members connected {members.length < 2 && '(Min 2 required for consensus)'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-              {group?.name ?? 'Loading Group...'}
+              {group?.name ?? 'Loading Team...'}
             </h1>
           </div>
 
           {group?.joinCode && (
             <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
               <div>
-                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Join Code</p>
+                <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Share Code (Max 6)</p>
                 <span className="font-mono text-xl font-bold text-teal-700 tracking-widest">
                   {group.joinCode}
                 </span>
@@ -598,14 +606,16 @@ export default function GroupDashboard() {
               <section className="enterprise-card p-5">
                 <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
                   <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Connected Members ({members.length})
+                    Connected Members ({members.length}/6)
                   </h2>
-                  <Link
-                    to={`/join/${group?.joinCode ?? ''}`}
-                    className="text-xs text-teal-600 hover:text-teal-700 font-bold"
-                  >
-                    + Switch User
-                  </Link>
+                  {members.length < 6 && (
+                    <Link
+                      to={`/join/${group?.joinCode ?? ''}`}
+                      className="text-xs text-teal-600 hover:text-teal-700 font-bold"
+                    >
+                      + Join Code
+                    </Link>
+                  )}
                 </div>
 
                 <div className="space-y-2">

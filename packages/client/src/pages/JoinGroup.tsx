@@ -36,7 +36,10 @@ export default function JoinGroup() {
       const result = await groupApi.joinGroup(joinCode.trim().toUpperCase());
       const { group, member } = result;
 
-      // Persist to localStorage
+      // Persist to sessionStorage and localStorage
+      sessionStorage.setItem(LS_KEYS.userId, auth.user.id);
+      sessionStorage.setItem(LS_KEYS.groupMemberId, member.id);
+      sessionStorage.setItem(LS_KEYS.groupId, group.id);
       localStorage.setItem(LS_KEYS.userId, auth.user.id);
       localStorage.setItem(LS_KEYS.groupMemberId, member.id);
       localStorage.setItem(LS_KEYS.groupId, group.id);

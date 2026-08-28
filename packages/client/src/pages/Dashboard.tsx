@@ -63,6 +63,9 @@ export default function Dashboard() {
       const { group, member } = await groupApi.createGroup(newGroupName.trim());
 
       // Store creator identity so GroupDashboard knows who the leader is
+      sessionStorage.setItem('consensus_userId', user.id);
+      sessionStorage.setItem('consensus_groupMemberId', member.id);
+      sessionStorage.setItem('consensus_groupId', group.id);
       localStorage.setItem('consensus_userId', user.id);
       localStorage.setItem('consensus_groupMemberId', member.id);
       localStorage.setItem('consensus_groupId', group.id);

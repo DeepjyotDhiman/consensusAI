@@ -175,6 +175,19 @@ groupsRouter.post(
         .get(userId, groupRow.id);
 
       if (!memberRow) {
+        // Enforce maximum 6 members per team
+        const countRow = db
+          .prepare<[string], { count: number }>(
+            "SELECT COUNT(*) as count FROM group_members WHERE group_id = ?"
+          )
+          .get(groupRow.id);
+
+        const currentMemberCount = countRow?.count ?? 0;
+        if (currentMemberCount >= 6) {
+          res.status(400).json({ error: "Group is full (maximum 6 members per team)." });
+          return;
+        }
+
         const memberId = uuidv4();
         const joinedAt = Date.now();
         db.prepare(
