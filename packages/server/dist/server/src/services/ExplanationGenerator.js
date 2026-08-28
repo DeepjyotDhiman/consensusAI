@@ -64,33 +64,51 @@ export function generate(output, members) {
     sentences.push(gapText > 0
         ? `The group reached consensus on '${output.recommendation}' with a group score of ${Math.round(output.groupScore)}%, beating runner-up '${output.runnerUp}' by ${gapText} points.`
         : `The group reached consensus on '${output.recommendation}' with a group score of ${Math.round(output.groupScore)}%.`);
-    // 2. Alignment sentences for well-aligned groups
+    // 2. Unique project context if applicable
+    if (output.projectDetails?.problem) {
+        sentences.push(`Target problem: ${output.projectDetails.problem}`);
+    }
+    if (output.projectDetails?.isUnique) {
+        sentences.push("Custom project recommendation: dynamically synthesized to maximize alignment with your team's specific skills and shared goals.");
+    }
+    // 3. Skill coverage insights (covered, transferable, missing)
+    if (output.skillCoverage) {
+        const { coveredSkills, transferableSkills, missingSkills } = output.skillCoverage;
+        if (coveredSkills.length > 0) {
+            sentences.push(`Team strengths: direct coverage for ${coveredSkills.join(", ")}.`);
+        }
+        if (transferableSkills.length > 0) {
+            sentences.push(`Transferable skills identified: team brings adjacent experience in ${transferableSkills.join(", ")}.`);
+        }
+        if (missingSkills.length > 0) {
+            sentences.push(`Feasibility trade-off: project requires ${missingSkills.join(", ")}, which will require upskilling.`);
+        }
+    }
+    // 4. Alignment sentences for well-aligned groups
     const aligned = alignedMembersSentence(output.memberScores, memberMap);
     if (aligned)
         sentences.push(aligned);
     const roleMatch = roleMatchSentence(output.roleAllocation);
     if (roleMatch)
         sentences.push(roleMatch);
-    // 3. Per low-scorer (score < 70) — trade-off sentences
-    const tradeOffAdded = [];
+    // 5. Per low-scorer (score < 70) — trade-off sentences
     for (const [userId, score] of Object.entries(output.memberScores)) {
         if (score < 70) {
             const name = getName(userId, memberMap);
             sentences.push(`${name} accepted a trade-off (score: ${Math.round(score)}%) to support the group direction.`);
-            tradeOffAdded.push(userId);
         }
     }
-    // 4. Priorities enrichment (explanation-only, no score effect)
+    // 6. Priorities enrichment (explanation-only, no score effect)
     if (output.priorities) {
         const prioSentence = prioritiesSentence(output.priorities, memberMap);
         if (prioSentence)
             sentences.push(prioSentence);
     }
-    // 5. One sentence per conflict
+    // 7. One sentence per conflict
     for (const conflict of output.conflicts) {
         sentences.push(conflict.description);
     }
-    // 6. Closing sentence based on stddev
+    // 8. Closing sentence based on stddev
     const scores = Object.values(output.memberScores);
     const sd = stddev(scores);
     let closing;

@@ -202,7 +202,10 @@ groupsRouter.post(
 );
 
 // GET /api/v1/groups/:id — get group with members
-groupsRouter.get("/:id", (req, res, next) => {
+groupsRouter.get(
+  "/:id",
+  authenticateToken,
+  (req: AuthenticatedRequest, res, next) => {
   try {
     const groupRow = db
       .prepare<[string], GroupRow>("SELECT * FROM groups WHERE id = ?")
@@ -212,6 +215,18 @@ groupsRouter.get("/:id", (req, res, next) => {
       res.status(404).json({ error: "Group not found" });
       return;
     }
+          const isMember = db
+        .prepare<[string, string]>(
+          "SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?"
+        )
+        .get(groupRow.id, req.user!.userId);
+
+      if (!isMember) {
+        res.status(403).json({
+          error: "You are not a member of this group.",
+        });
+        return;
+      }
 
     const memberRows = db
       .prepare<[string], GroupMemberRow>(

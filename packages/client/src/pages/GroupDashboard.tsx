@@ -50,7 +50,8 @@ function TargetProjectTaskAllocation({
   const [editingProject, setEditingProject] = useState(false);
   const [projectInput, setProjectInput] = useState('');
 
-  const activeProjectName = store.projectName || consensusResult?.recommendation || 'E-commerce Platform';
+  const activeProjectName =
+  consensusResult?.recommendation || store.projectName || '';
 
   const { assignedTasks, standbyMembers, profile, missingSkills } = useMemo(() => {
     if (!consensusResult && members.length === 0) {
@@ -60,7 +61,7 @@ function TargetProjectTaskAllocation({
     return { assignedTasks: assigned, standbyMembers: standby, profile, missingSkills };
   }, [consensusResult, members, preferencesMap, activeProjectName]);
 
-  const handleSaveProjectName = (e: React.FormEvent) => {
+  function handleSaveProjectName(e: React.FormEvent) {
     e.preventDefault();
     if (projectInput.trim()) {
       store.setProjectName(projectInput.trim());
@@ -69,9 +70,27 @@ function TargetProjectTaskAllocation({
       }
     }
     setEditingProject(false);
-  };
+  }
 
-  if (!profile) return null;
+  if (!profile) {
+    return (
+      <div className="enterprise-card p-4 sm:p-5 text-left border border-slate-200 bg-slate-50/70 space-y-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">🎯</span>
+            <div>
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                Recommended Project & Task Allocation
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Consensus pending — submit team preferences and click "Generate Final Consensus" to find your optimal project match and team role allocations.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="enterprise-card p-4 sm:p-5 space-y-4 text-left">
@@ -273,7 +292,7 @@ export default function GroupDashboard() {
   // Connect socket (hydrates members + preferencesMap + consensus)
   const session = useGroupSession(groupId, effectiveUserId);
 
-  // Fetch group metadata via REST on mount
+  // Fetch group metadata and members via REST on mount (ensures instant hydration even before socket sync)
   useEffect(() => {
     if (!groupId) return;
     const savedProject = localStorage.getItem(`consensus_projectName_${groupId}`);
@@ -282,12 +301,40 @@ export default function GroupDashboard() {
     }
     groupApi
       .getGroup(groupId)
-      .then(({ group }) => {
+      .then(({ group, members: fetchedMembers }) => {
         store.setGroup(group);
         store.setGroupName(group.name);
+        if (fetchedMembers && fetchedMembers.length > 0) {
+          const membersWithDisplay: MemberWithDisplay[] = fetchedMembers.map((m) => ({
+            id: m.id,
+            groupId: group.id,
+            userId: m.userId,
+            role: m.role || 'member',
+            displayName: m.displayName,
+            avatarColor: m.avatarColor,
+            joinedAt: m.joinedAt,
+          }));
+          store.setMembers(membersWithDisplay);
+
+          const myMember = fetchedMembers.find((m) => m.userId === effectiveUserId);
+          if (myMember) {
+            store.setCurrentUser(myMember.userId, myMember.id);
+            localStorage.setItem(LS_KEYS.userId, myMember.userId);
+            localStorage.setItem(LS_KEYS.groupMemberId, myMember.id);
+          }
+        }
       })
       .catch(console.error);
-  }, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    groupApi
+      .getLatestConsensus(groupId)
+      .then((latestResult) => {
+        if (latestResult) {
+          store.setConsensusResult(latestResult);
+        }
+      })
+      .catch(console.error);
+  }, [groupId, effectiveUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleBlurSave(groupMemberId: string, prefs: Preference) {
     console.log('[UI Event] Preference auto-save on blur for member:', groupMemberId);
@@ -313,7 +360,7 @@ export default function GroupDashboard() {
 
   function handleGenerateConsensus() {
     if (!currentUserId) return;
-    session.generateConsensus(groupId, currentUserId);
+    session.generateConsensus(groupId);
     setIsCalculating(true);
     setTimeout(() => {
       setIsCalculating(false);

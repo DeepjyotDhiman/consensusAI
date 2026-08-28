@@ -4,65 +4,15 @@
 //   2. Implement: generateConsensus(input: ConsensusInput): Promise<ConsensusOutput>
 //   3. In socket/handlers.ts change: import { MockConsensusEngine } → import { OllamaConsensusEngine }
 //   4. Zero other changes required.
-//
-// The LLM engine should:
-//   - Build a prompt from input.members and their preferences
-//   - Include the CANDIDATES list from ../data/candidates.ts
-//   - Request JSON output matching ConsensusOutput shape
-//   - Parse and validate the JSON response
-//   - Fall back to MockConsensusEngine if parsing fails
 
-import type { ConsensusInput, ConsensusOutput } from "@consensus/shared";
+import type { ConsensusInput, ConsensusOutput, Candidate } from "@consensus/shared";
+import { assessTeamSkillCoverage, allocateProjectRoles } from "@consensus/shared";
 import type { ConsensusEngine } from "./ConsensusEngine.js";
 import { CANDIDATES } from "../data/candidates.js";
 import * as ConflictAnalyzer from "../services/ConflictAnalyzer.js";
 import * as ScoringEngine from "../services/ScoringEngine.js";
 import * as ExplanationGenerator from "../services/ExplanationGenerator.js";
-
-// ---------------------------------------------------------------------------
-// Skill → Human-readable role title
-// Covers every requiredSkill that appears across all 10 candidates.
-// ---------------------------------------------------------------------------
-const SKILL_TO_ROLE_TITLE: Record<string, string> = {
-  "Machine Learning":   "ML Engineer & Model Lead",
-  "Python":             "Python Backend Developer",
-  "Data Analysis":      "Data Analyst",
-  "React":              "Frontend React Lead",
-  "TypeScript":         "TypeScript Engineer",
-  "Angular":            "Angular Frontend Lead",
-  "Vue":                "Vue.js Frontend Lead",
-  "Flutter":            "Mobile App Lead Engineer",
-  "Django":             "Django Backend Developer",
-  "FastAPI":            "FastAPI Services Lead",
-  "Go":                 "Systems & Go Developer",
-  "Rust":               "Systems & Rust Engineer",
-  "CSS":                "UI/CSS Specialist",
-  "UI Design":          "UI/UX Designer",
-  "Network Security":   "Security Engineer",
-  "Cryptography":       "Cryptography Specialist",
-  "SQL":                "Database & SQL Engineer",
-  "Data Visualization": "Data Visualisation Engineer",
-  "PostgreSQL":         "Database Engineer",
-  "Docker":             "DevOps & Container Specialist",
-  "Project Management": "Project Manager",
-  "Community Outreach": "Community & Outreach Lead",
-  "Linux":              "Systems & Linux Engineer",
-};
-
-/** Returns a professional role title for a required skill, or the skill name itself as fallback. */
-function toRoleTitle(skill: string): string {
-  const exact = SKILL_TO_ROLE_TITLE[skill];
-  if (exact) return exact;
-
-  const lower = skill.toLowerCase();
-  for (const [key, title] of Object.entries(SKILL_TO_ROLE_TITLE)) {
-    if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) {
-      return title;
-    }
-  }
-
-  return `${skill} Specialist`;
-}
+import * as UniqueProjectSynthesizer from "../services/UniqueProjectSynthesizer.js";
 
 export class MockConsensusEngine implements ConsensusEngine {
   async generateConsensus(input: ConsensusInput): Promise<ConsensusOutput> {
@@ -86,20 +36,25 @@ export class MockConsensusEngine implements ConsensusEngine {
       );
     }
 
-    // Edge case: no candidates available
-    if (CANDIDATES.length === 0) {
-      throw new Error("No candidates available");
-    }
-
     // -------------------------------------------------------------------------
     // Step 1: Detect conflicts across all members with preferences
     // -------------------------------------------------------------------------
     const conflicts = ConflictAnalyzer.analyze(membersWithPrefs);
 
     // -------------------------------------------------------------------------
-    // Step 2: Score every candidate against the filtered member set
+    // Step 2: Synthesize unique project candidates & build candidate pool
     // -------------------------------------------------------------------------
-    const scoredCandidates = CANDIDATES.map((candidate) => {
+    const uniqueCandidates = UniqueProjectSynthesizer.generateUniqueCandidates(membersWithPrefs);
+    const candidatePool: Candidate[] = [...CANDIDATES, ...uniqueCandidates];
+
+    if (candidatePool.length === 0) {
+      throw new Error("No candidates available");
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 3: Score every candidate in the pool against the member set
+    // -------------------------------------------------------------------------
+    const scoredCandidates = candidatePool.map((candidate) => {
       const result = ScoringEngine.scoreCandidate(candidate, membersWithPrefs);
       return {
         candidate,
@@ -110,7 +65,7 @@ export class MockConsensusEngine implements ConsensusEngine {
     });
 
     // -------------------------------------------------------------------------
-    // Step 3: Sort by groupScore descending; tie-break by candidate.id lexically
+    // Step 4: Sort by groupScore descending; tie-break by candidate.id lexically
     // -------------------------------------------------------------------------
     scoredCandidates.sort((a, b) => {
       if (b.groupScore !== a.groupScore) return b.groupScore - a.groupScore;
@@ -121,45 +76,52 @@ export class MockConsensusEngine implements ConsensusEngine {
     const runnerUp = scoredCandidates[1];
 
     // -------------------------------------------------------------------------
-    // Step 4: Greedy role allocation for the winning candidate
+    // Step 5: Optimal Role & Task Allocation for the winning candidate
     // -------------------------------------------------------------------------
-    const roleAllocation: Record<string, string> = {};
-    const assigned = new Set<string>();
+    const memberProfiles = membersWithPrefs.map((m) => {
+      const skills = Array.isArray(m.preferences.skills)
+        ? m.preferences.skills
+        : typeof m.preferences.skills === "string"
+        ? m.preferences.skills.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+      const learningGoals = Array.isArray(m.preferences.learningGoals)
+        ? m.preferences.learningGoals
+        : typeof m.preferences.learningGoals === "string"
+        ? m.preferences.learningGoals.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+      const interests = Array.isArray(m.preferences.interests)
+        ? m.preferences.interests
+        : typeof m.preferences.interests === "string"
+        ? m.preferences.interests.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
 
-    for (const skill of winner.candidate.requiredSkills) {
-      let bestMember: string | null = null;
-      let bestScore = -1;
+      return {
+        userId: m.userId,
+        displayName: m.displayName,
+        skills,
+        learningGoals,
+        interests,
+      };
+    });
 
-      for (const member of membersWithPrefs) {
-        if (assigned.has(member.userId)) continue;
-        const memberSkills: string[] = Array.isArray(member.preferences.skills)
-          ? member.preferences.skills
-          : typeof member.preferences.skills === "string"
-          ? member.preferences.skills.split(",").map((s) => s.trim()).filter(Boolean)
-          : [];
-        const skillScore = memberSkills.filter(
-          (s: string) =>
-            s.toLowerCase().includes(skill.toLowerCase()) ||
-            skill.toLowerCase().includes(s.toLowerCase())
-        ).length;
-        if (skillScore > bestScore) {
-          bestScore = skillScore;
-          bestMember = member.userId;
-        }
-      }
-
-      if (bestMember !== null) {
-        roleAllocation[bestMember] = toRoleTitle(skill);
-        assigned.add(bestMember);
-      } else {
-        roleAllocation["Unassigned"] = toRoleTitle(skill);
-      }
-    }
+    const { roleAllocation, roleAssignments } = allocateProjectRoles(
+      {
+        title: winner.candidate.title,
+        requiredSkills: winner.candidate.requiredSkills,
+        description: winner.candidate.description,
+      },
+      memberProfiles
+    );
 
     // -------------------------------------------------------------------------
-    // Step 5: Generate explanation
+    // Step 6: Team Skill Coverage Analysis
     // -------------------------------------------------------------------------
-    // Collect priorities map for enriched explanation text (no score effect)
+    const teamSkills = memberProfiles.map((m) => m.skills);
+    const skillCoverage = assessTeamSkillCoverage(teamSkills, winner.candidate.requiredSkills);
+
+    // -------------------------------------------------------------------------
+    // Step 7: Generate explanation with unique project & skill coverage insights
+    // -------------------------------------------------------------------------
     const prioritiesMap: Record<string, string[]> = {};
     for (const member of membersWithPrefs) {
       const prioRaw = member.preferences.priorities;
@@ -171,6 +133,19 @@ export class MockConsensusEngine implements ConsensusEngine {
       if (prioArr.length > 0) prioritiesMap[member.userId] = prioArr;
     }
 
+    const projectDetails = {
+      title: winner.candidate.title,
+      description: winner.candidate.description,
+      domain: winner.candidate.domain,
+      domainTags: winner.candidate.domainTags,
+      requiredSkills: winner.candidate.requiredSkills,
+      costPerMember: winner.candidate.costPerMember,
+      minHoursPerWeek: winner.candidate.minHoursPerWeek,
+      problem: winner.candidate.problem,
+      opportunity: winner.candidate.opportunity,
+      isUnique: winner.candidate.isUnique,
+    };
+
     const partialOutput: ExplanationGenerator.ExplanationInput = {
       recommendation: winner.candidate.title,
       runnerUp: runnerUp?.candidate.title ?? "None",
@@ -180,23 +155,28 @@ export class MockConsensusEngine implements ConsensusEngine {
       roleAllocation,
       conflicts,
       ...(Object.keys(prioritiesMap).length > 0 && { priorities: prioritiesMap }),
+      skillCoverage,
+      projectDetails,
     };
 
     const explanation = ExplanationGenerator.generate(partialOutput, membersWithPrefs);
 
     // -------------------------------------------------------------------------
-    // Step 6: Assemble and return ConsensusOutput
+    // Step 8: Assemble and return ConsensusOutput
     // -------------------------------------------------------------------------
     return {
       recommendation: winner.candidate.title,
       candidateId: winner.candidate.id,
+      projectDetails,
       roleAllocation,
+      roleAssignments,
       memberScores: winner.memberScores,
       memberBreakdowns: winner.memberBreakdowns,
       groupScore: Math.round(winner.groupScore),
       conflicts,
       explanation,
       runnerUp: runnerUp?.candidate.title ?? "None",
+      skillCoverage,
     };
   }
 }

@@ -3,6 +3,7 @@ import db from "../db/db.js";
 import * as PreferenceService from "../services/PreferenceService.js";
 import { MockConsensusEngine } from "../consensus/MockConsensusEngine.js";
 import { v4 as uuidv4 } from "uuid";
+import { verifyToken } from "../services/authService.js";
 // ── The engine instance — MockConsensusEngine is the sole source of truth ────
 // OllamaConsensusEngine is only loaded if explicitly configured
 async function getEngine() {
@@ -27,12 +28,12 @@ const preferencePayloadSchema = z.object({
 });
 const preferenceSubmitSchema = preferencePayloadSchema; // same shape; submittedAt is set server-side
 const consensusGenerateSchema = z.object({
-    groupId: z.string().min(1),
-    userId: z.string().min(1),
+    groupId: z.string().min(1, "groupId is required"),
+    userId: z.string().optional(),
 });
 const groupJoinSchema = z.object({
-    groupId: z.string().min(1),
-    userId: z.string().min(1),
+    groupId: z.string().min(1, "groupId is required"),
+    userId: z.string().optional(),
 });
 // ── Helper: get full group state snapshot ────────────────────────────────────
 function getGroupStateSnapshot(groupId) {
@@ -121,6 +122,23 @@ async function runAndBroadcastConsensus(io, groupId) {
 }
 // ── Main handler registration ────────────────────────────────────────────────
 export function registerHandlers(io) {
+    io.use((socket, next) => {
+        try {
+            const token = socket.handshake.auth?.token;
+            if (typeof token !== "string" || !token) {
+                return next(new Error("Authentication required"));
+            }
+            const user = verifyToken(token);
+            if (!user) {
+                return next(new Error("Invalid or expired authentication token"));
+            }
+            socket.data.user = user;
+            next();
+        }
+        catch {
+            next(new Error("Socket authentication failed"));
+        }
+    });
     io.on("connection", (socket) => {
         // ── group:join ────────────────────────────────────────────────────────────
         socket.on("group:join", async (payload) => {
@@ -129,12 +147,22 @@ export function registerHandlers(io) {
                 socket.emit("error", { message: "Invalid join payload" });
                 return;
             }
-            const { groupId, userId } = parsed.data;
+            const { groupId } = parsed.data;
+            const userId = socket.data.user.userId;
             const group = db
                 .prepare("SELECT * FROM groups WHERE id = ?")
                 .get(groupId);
             if (!group) {
                 socket.emit("error", { message: "Group not found" });
+                return;
+            }
+            const member = db
+                .prepare("SELECT * FROM group_members WHERE group_id = ? AND user_id = ?")
+                .get(groupId, userId);
+            if (!member) {
+                socket.emit("error", {
+                    message: "You are not a member of this group.",
+                });
                 return;
             }
             socket.join(groupId);
@@ -157,6 +185,13 @@ export function registerHandlers(io) {
                 .get(groupMemberId);
             if (!memberRow) {
                 socket.emit("error", { message: "Group member not found" });
+                return;
+            }
+            const authenticatedUserId = socket.data.user.userId;
+            if (memberRow.user_id !== authenticatedUserId) {
+                socket.emit("error", {
+                    message: "You can only update your own preferences.",
+                });
                 return;
             }
             try {
@@ -188,6 +223,13 @@ export function registerHandlers(io) {
                 socket.emit("error", { message: "Group member not found" });
                 return;
             }
+            const authenticatedUserId = socket.data.user.userId;
+            if (memberRow.user_id !== authenticatedUserId) {
+                socket.emit("error", {
+                    message: "You can only submit your own preferences.",
+                });
+                return;
+            }
             try {
                 // Save preferences AND set submitted_at to now
                 const saved = PreferenceService.upsert(groupMemberId, {
@@ -217,7 +259,8 @@ export function registerHandlers(io) {
                 socket.emit("error", { message: "Invalid generate payload" });
                 return;
             }
-            const { groupId, userId } = parsed.data;
+            const { groupId } = parsed.data;
+            const userId = socket.data.user.userId;
             // Verify the requester is the group leader
             const leaderRow = db
                 .prepare("SELECT * FROM group_members WHERE group_id = ? AND user_id = ? AND role = 'leader'")

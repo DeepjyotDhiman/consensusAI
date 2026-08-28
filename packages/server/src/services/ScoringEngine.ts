@@ -1,4 +1,5 @@
 import type { Candidate, Preference } from "@consensus/shared";
+import { assessMemberSkillFit } from "@consensus/shared";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,60 +27,6 @@ function toArray(val: string[] | string | undefined | null): string[] {
   return [];
 }
 
-const COMMON_SKILL_ALIASES: Record<string, string[]> = {
-  "ml": ["machine learning", "ai", "artificial intelligence", "deep learning", "nlp", "llm", "data science"],
-  "machine learning": ["ml", "ai", "artificial intelligence", "deep learning", "nlp", "llm", "data science"],
-  "ai": ["artificial intelligence", "machine learning", "ml", "nlp", "llm", "deep learning", "data science"],
-  "react": ["reactjs", "react.js", "frontend", "web", "angular", "vue", "nextjs", "next.js", "svelte"],
-  "angular": ["frontend", "web", "react", "vue", "typescript", "javascript"],
-  "vue": ["frontend", "web", "react", "angular", "vuejs", "javascript"],
-  "typescript": ["ts", "javascript", "js", "frontend", "backend", "fullstack"],
-  "python": ["py", "python3", "django", "fastapi", "flask", "backend", "data science"],
-  "postgresql": ["postgres", "sql", "psql", "database", "db", "mysql", "mongodb"],
-  "sql": ["postgresql", "postgres", "mysql", "database", "db", "sqlite", "nosql", "mongodb"],
-  "ui design": ["ui", "ux", "figma", "design", "ui/ux", "wireframing", "product design", "adobe xd"],
-  "network security": ["security", "cybersecurity", "infosec", "crypto", "ethical hacking"],
-  "cryptography": ["crypto", "security", "blockchain", "web3"],
-  "css": ["tailwind", "styling", "html/css", "frontend", "sass", "scss", "bootstrap"],
-  "flutter": ["mobile", "dart", "react native", "android", "ios", "crossplatform"],
-  "data analysis": ["data science", "pandas", "numpy", "python", "sql", "analytics", "bi", "tableau"],
-  "data visualization": ["d3", "chartjs", "tableau", "powerbi", "matplotlib", "seaborn", "frontend"],
-  "project management": ["management", "agile", "scrum", "lead", "leadership", "jira"],
-  "linux": ["devops", "systems", "bash", "shell", "docker", "cloud", "unix"],
-};
-
-function normalize(str: string): string {
-  return str.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function skillsMatch(memberSkill: string, requiredSkill: string): boolean {
-  const m = memberSkill.toLowerCase().trim();
-  const r = requiredSkill.toLowerCase().trim();
-  const normM = normalize(m);
-  const normR = normalize(r);
-
-  if (m === r || normM === normR) return true;
-  if (normM.includes(normR) || normR.includes(normM)) return true;
-
-  const aliasesR = COMMON_SKILL_ALIASES[r] || [];
-  if (aliasesR.some((a) => {
-    const normA = normalize(a);
-    return normM === normA || normM.includes(normA) || normA.includes(normM);
-  })) {
-    return true;
-  }
-
-  const aliasesM = COMMON_SKILL_ALIASES[m] || [];
-  if (aliasesM.some((a) => {
-    const normA = normalize(a);
-    return normR === normA || normR.includes(normA) || normA.includes(normR);
-  })) {
-    return true;
-  }
-
-  return false;
-}
-
 // ---------------------------------------------------------------------------
 // Score a single member against a candidate (0-100)
 // ---------------------------------------------------------------------------
@@ -105,16 +52,8 @@ export function scoreMember(
     interestScore = Math.min(30, (matched / interests.length) * 30);
   }
 
-  // Skill match (0-25)
-  let skillScore: number;
-  if (candidate.requiredSkills.length === 0) {
-    skillScore = 25;
-  } else {
-    const matched = candidate.requiredSkills.filter((rs) =>
-      skills.some((ms) => skillsMatch(ms, rs))
-    ).length;
-    skillScore = (matched / candidate.requiredSkills.length) * 25;
-  }
+  // Multi-tiered skill match (0-25) using shared skill assessment
+  const { skillScore } = assessMemberSkillFit(skills, candidate.requiredSkills);
 
   // Availability (0-20)
   let availabilityScore: number;

@@ -25,14 +25,14 @@ export default function CandidateCatalogModal({ isOpen, onClose }: Props) {
 
   if (!isOpen) return null;
 
-  const categories = Array.from(new Set(candidates.map((c) => c.category)));
+  const categories = Array.from(new Set(candidates.map((c) => c.domain)));
 
   const filtered = candidates.filter((c) => {
     const matchesSearch =
       c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.description.toLowerCase().includes(search.toLowerCase()) ||
       c.requiredSkills.some((s) => s.toLowerCase().includes(search.toLowerCase()));
-    const matchesCategory = categoryFilter === 'all' || c.category === categoryFilter;
+    const matchesCategory = categoryFilter === 'all' || c.domain === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
@@ -68,11 +68,10 @@ export default function CandidateCatalogModal({ isOpen, onClose }: Props) {
           <div className="flex gap-1.5 flex-wrap">
             <button
               onClick={() => setCategoryFilter('all')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                categoryFilter === 'all'
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${categoryFilter === 'all'
                   ? 'bg-teal-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+                }`}
             >
               All ({candidates.length})
             </button>
@@ -80,11 +79,10 @@ export default function CandidateCatalogModal({ isOpen, onClose }: Props) {
               <button
                 key={cat}
                 onClick={() => setCategoryFilter(cat)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  categoryFilter === cat
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${categoryFilter === cat
                     ? 'bg-teal-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 {cat}
               </button>
@@ -115,7 +113,7 @@ export default function CandidateCatalogModal({ isOpen, onClose }: Props) {
                         {candidate.id}
                       </span>
                       <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                        {candidate.category}
+                        {candidate.domain}
                       </span>
                     </div>
 
@@ -138,8 +136,8 @@ export default function CandidateCatalogModal({ isOpen, onClose }: Props) {
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                      <span>Budget: ${candidate.minBudget} – ${candidate.maxBudget}</span>
-                      <span>Commitment: {candidate.minHoursWeek}h/week</span>
+                      <span>Budget: ${candidate.costPerMember} / member</span>
+                      <span>Commitment: {candidate.minHoursPerWeek}h/week</span>
                     </div>
                   </div>
                 </div>

@@ -1,3 +1,4 @@
+import { assessMemberSkillFit } from "@consensus/shared";
 function toArray(val) {
     if (!val)
         return [];
@@ -6,33 +7,6 @@ function toArray(val) {
     if (typeof val === "string")
         return val.split(",").map((s) => s.trim()).filter(Boolean);
     return [];
-}
-const COMMON_SKILL_ALIASES = {
-    "ml": ["machine learning", "ai", "artificial intelligence"],
-    "machine learning": ["ml", "ai", "artificial intelligence"],
-    "ai": ["artificial intelligence", "machine learning", "ml"],
-    "react": ["reactjs", "react.js", "frontend"],
-    "typescript": ["ts", "javascript", "js"],
-    "python": ["py", "python3"],
-    "postgresql": ["postgres", "sql", "psql"],
-    "sql": ["postgresql", "postgres", "mysql", "database"],
-    "ui design": ["ui", "ux", "figma", "design", "ui/ux"],
-    "network security": ["security", "cybersecurity", "infosec"],
-    "cryptography": ["crypto", "security"],
-    "css": ["tailwind", "styling", "html/css", "frontend"],
-};
-function skillsMatch(memberSkill, requiredSkill) {
-    const m = memberSkill.toLowerCase().trim();
-    const r = requiredSkill.toLowerCase().trim();
-    if (m === r)
-        return true;
-    if (m.includes(r) || r.includes(m))
-        return true;
-    const aliases = COMMON_SKILL_ALIASES[r] || [];
-    if (aliases.includes(m) || aliases.some((a) => m.includes(a) || a.includes(m))) {
-        return true;
-    }
-    return false;
 }
 // ---------------------------------------------------------------------------
 // Score a single member against a candidate (0-100)
@@ -55,15 +29,8 @@ export function scoreMember(candidate, member) {
         }).length;
         interestScore = Math.min(30, (matched / interests.length) * 30);
     }
-    // Skill match (0-25)
-    let skillScore;
-    if (candidate.requiredSkills.length === 0) {
-        skillScore = 25;
-    }
-    else {
-        const matched = candidate.requiredSkills.filter((rs) => skills.some((ms) => skillsMatch(ms, rs))).length;
-        skillScore = (matched / candidate.requiredSkills.length) * 25;
-    }
+    // Multi-tiered skill match (0-25) using shared skill assessment
+    const { skillScore } = assessMemberSkillFit(skills, candidate.requiredSkills);
     // Availability (0-20)
     let availabilityScore;
     if (candidate.minHoursPerWeek === 0) {

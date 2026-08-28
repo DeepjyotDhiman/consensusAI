@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import db from "../db/db.js";
 import type { ConsensusOutput, Conflict } from "@consensus/shared";
+import { authenticateToken, type AuthenticatedRequest } from "../middleware/authMiddleware.js";
 
 export const consensusRouter: IRouter = Router();
 
@@ -24,8 +25,25 @@ interface ConsensusResultRow {
 // ---------------------------------------------------------------------------
 // GET /api/v1/consensus/:groupId/latest — latest consensus result
 // ---------------------------------------------------------------------------
-consensusRouter.get("/:groupId/latest", (req, res, next) => {
+consensusRouter.get(
+  "/:groupId/latest",
+  authenticateToken,
+  (req: AuthenticatedRequest, res, next) => {
   try {
+     const groupId = req.params["groupId"] ?? "";
+
+  const isMember = db
+    .prepare<[string, string]>(
+      "SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?"
+    )
+    .get(groupId, req.user!.userId);
+
+  if (!isMember) {
+    res.status(403).json({
+      error: "You are not a member of this group.",
+    });
+    return;
+  }
     const row = db
       .prepare<[string], ConsensusResultRow>(
         `SELECT * FROM consensus_results

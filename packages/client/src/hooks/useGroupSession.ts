@@ -22,24 +22,27 @@ export function useGroupSession(groupId: string, userId?: string | null) {
 
     const token = localStorage.getItem('consensus_auth_token');
 
-    const socket: AppSocket = io('http://localhost:3001', {
-      transports: ['websocket'],
+    const socketUrl = window.location.hostname === 'localhost' ? 'http://localhost:3001' : undefined;
+
+    const socket: AppSocket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
       autoConnect: true,
-      // Send JWT in handshake so the server can optionally verify socket identity
+      // Send JWT in handshake so the server can verify socket identity
       auth: { token: token ?? '' },
     });
     socketRef.current = socket;
 
     socket.on('connect', () => {
       store.setConnectionStatus('connected');
-      socket.emit('group:join', { groupId, userId: validUserId });
+      socket.emit('group:join', { groupId });
     });
 
     socket.on('disconnect', () => {
       store.setConnectionStatus('disconnected');
     });
 
-    socket.on('connect_error', () => {
+    socket.on('connect_error', (err) => {
+      console.warn('Socket connect error:', err.message);
       store.setConnectionStatus('reconnecting');
     });
 
@@ -51,6 +54,15 @@ export function useGroupSession(groupId: string, userId?: string | null) {
       }
       if (payload.latestConsensus) {
         store.setConsensusResult(payload.latestConsensus);
+      }
+      // Ensure the current user's group member ID is hydrated
+      if (validUserId) {
+        const myMember = (payload.members as any[]).find((m) => m.userId === validUserId);
+        if (myMember) {
+          store.setCurrentUser(validUserId, myMember.id);
+          localStorage.setItem('consensus_userId', validUserId);
+          localStorage.setItem('consensus_groupMemberId', myMember.id);
+        }
       }
     });
 
@@ -98,11 +110,11 @@ export function useGroupSession(groupId: string, userId?: string | null) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Leader-only: force consensus generation */
-  const generateConsensus = useCallback((groupId: string, userId: string) => {
-    if (!socketRef.current?.connected) return;
-    console.log('[Socket Emit] consensus:generate for group:', groupId);
-    socketRef.current?.emit('consensus:generate', { groupId, userId });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const generateConsensus = useCallback((groupId: string) => {
+  if (!socketRef.current?.connected) return;
+  console.log('[Socket Emit] consensus:generate for group:', groupId);
+  socketRef.current?.emit('consensus:generate', { groupId });
+}, []);
 
   return {
     group: store.group,

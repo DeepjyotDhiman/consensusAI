@@ -1,4 +1,6 @@
-import type { Group, GroupMember, Preference, ConsensusOutput, User } from '@consensus/shared';
+import type { Group, GroupMember, Preference, ConsensusOutput, User, Candidate } from '@consensus/shared';
+
+export type { Candidate };
 
 const BASE = '/api/v1';
 const TOKEN_KEY = 'consensus_auth_token';
@@ -40,17 +42,6 @@ export interface JoinResult {
   group: Group;
   member: GroupMember;
   user: User;
-}
-
-export interface Candidate {
-  id: string;
-  title: string;
-  category: string;
-  requiredSkills: string[];
-  minBudget: number;
-  maxBudget: number;
-  minHoursWeek: number;
-  description: string;
 }
 
 export const groupApi = {

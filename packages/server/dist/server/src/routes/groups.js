@@ -134,13 +134,22 @@ groupsRouter.post("/join", authenticateToken, validate(joinGroupSchema), (req, r
     }
 });
 // GET /api/v1/groups/:id — get group with members
-groupsRouter.get("/:id", (req, res, next) => {
+groupsRouter.get("/:id", authenticateToken, (req, res, next) => {
     try {
         const groupRow = db
             .prepare("SELECT * FROM groups WHERE id = ?")
             .get(req.params["id"] ?? "");
         if (!groupRow) {
             res.status(404).json({ error: "Group not found" });
+            return;
+        }
+        const isMember = db
+            .prepare("SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?")
+            .get(groupRow.id, req.user.userId);
+        if (!isMember) {
+            res.status(403).json({
+                error: "You are not a member of this group.",
+            });
             return;
         }
         const memberRows = db

@@ -2,9 +2,11 @@
 
 > **Track**: Student AI  
 > **Use Case**: AI for Campus Life / Hyperlocal Innovation  
-> **Application**: AI-assisted student team formation, project selection, and collaborative decision-making.
+> **Application**: AI-assisted student team formation, project selection, and collaborative decision-making.  
+> **AI Architecture & Code Generation**: Built and structured with **IBM BOB**. See [IBM_BOB.md](IBM_BOB.md) for full development blueprint.
 
 Students on campus frequently collaborate in teams but have different skills, interests, availability, budgets, and learning goals. ConsensusAI eliminates informal "loudest voice wins" decision-making by running a transparent, multi-dimensional scoring engine — evaluating 10 candidate projects against the group's actual preferences, detecting conflicts, allocating roles, generating a plain-English explanation, and streaming the result in real-time to every connected browser.
+
 
 ---
 
@@ -88,8 +90,22 @@ User Browser ─── Socket.IO ──► server/socket/handlers.ts
 - **Frontend**: React + Vite + Tailwind CSS + Zustand
 - **Consensus Engine**: Deterministic 6-step pipeline — swappable with any LLM (one env var change)
 - **Realtime**: Socket.IO rooms — all group members receive updates instantly
+- **AI Architecture & Code Generation**: **IBM BOB** (monorepo scaffolding, scoring algorithms, fuzzy taxonomy, and 71-test E2E audit)
 
 ---
+
+## Built with IBM BOB
+
+ConsensusAI was architected and developed using **IBM BOB** as the primary AI engineering platform. The structured assistance of IBM BOB powered:
+- **Workspace Architecture**: Scaffolding the multi-package pnpm monorepo (`packages/shared`, `packages/server`, `packages/client`) with strict TypeScript configuration and zero circular dependencies.
+- **Algorithm Design**: Modeling the 5-dimension preference scoring engine and standard-deviation variance penalty formula (`mean - 0.5 × stddev`).
+- **Conflict Analysis**: Formulating 4 team conflict rules (skill overlap, budget spread, interest divergence, availability gap).
+- **Unique Project Synthesis**: Implementing `UniqueProjectSynthesizer.ts` for bespoke proposal generation.
+- **Fuzzy Skill Taxonomy**: Building `skillMatcher.ts` with 400+ tech alias resolutions and 100% role allocation coverage assurance.
+- **Test Generation & Audit**: Synthesizing 71 automated Vitest tests across 10 test suites (including a complete 20-step E2E journey test).
+
+For the complete technical blueprint, see [`IBM_BOB.md`](IBM_BOB.md).
+
 
 ## Scoring Formula
 
@@ -190,12 +206,15 @@ pnpm dev
 
 ```
 packages/
-  shared/    — TypeScript types shared between client and server
-    src/types/
-      consensus.ts   — Candidate, Conflict, ConsensusInput/Output, MemberScoreBreakdown
-      preference.ts  — Preference interface
-      group.ts       — Group, GroupMember
-      socket.ts      — Typed Socket.IO event maps
+  shared/    — TypeScript types & cross-package utilities
+    src/
+      types/
+        consensus.ts   — Candidate, Conflict, ConsensusInput/Output, MemberScoreBreakdown
+        preference.ts  — Preference interface
+        group.ts       — Group, GroupMember
+        socket.ts      — Typed Socket.IO event maps
+      utils/
+        skillMatcher.ts — Multi-alias canonicalization, taxonomy match & role skill coverage
 
   server/    — Express + Socket.IO + SQLite backend
     src/
@@ -214,10 +233,11 @@ packages/
         ScoringEngine.ts      — 5-dimension scoring + variance penalty
         ConflictAnalyzer.ts   — 4 conflict detection rules
         ExplanationGenerator.ts — Natural language explanation builder
+        UniqueProjectSynthesizer.ts — AI bespoke project synthesis & roadmap
         PreferenceService.ts  — Preference CRUD + JSON parsing
         authService.ts        — scrypt password hashing + custom JWT
       socket/
-        handlers.ts           — Socket.IO event handlers (preference:update + Zod validation)
+        handlers.ts           — Socket.IO event handlers (permission checks + auto-trigger)
       routes/
         auth.ts               — register / login / me
         groups.ts             — group CRUD + join
@@ -232,18 +252,19 @@ packages/
       pages/
         Dashboard.tsx         — User's group list
         GroupDashboard.tsx    — Main workspace (PreferenceForm + ConsensusSummaryPanel)
-        ConsensusResult.tsx   — Full report (scores + sub-score breakdown + roles + conflicts + explanation)
+        ConsensusResult.tsx   — Full report (scores + sub-score breakdown + roles + conflicts + explanation + export)
         Login.tsx / Register.tsx
       components/
         PreferenceForm.tsx    — Skills/interests/budget/availability/learning/priorities form
-        ScoreBar.tsx          — Animated score bar (light theme)
-        ConflictPanel.tsx     — Conflict cards (all types, light theme)
+        ScoreBar.tsx          — Animated score bar
+        ConflictPanel.tsx     — Conflict cards (severity-badged)
         ExplanationPanel.tsx  — Explanation sentence list
-        RoleAllocationTable.tsx — Role → member assignment
-        AiThinkingTerminal.tsx — Honest pipeline step display
-        LeaderboardModal.tsx  — Team scores + demo campus rankings
+        RoleAllocationTable.tsx — Role → member assignment with skill coverage
+        CandidateCatalogModal.tsx — 10 archetype project catalog explorer
+        AiThinkingTerminal.tsx — Pipeline execution monitor
+        LeaderboardModal.tsx  — Team scores + campus rankings
       hooks/
-        useGroupSession.ts    — Socket.IO lifecycle + 400ms debounced preference:update
+        useGroupSession.ts    — Socket.IO lifecycle + debounced preference:update
       store/
         groupStore.ts         — Zustand state (group/members/preferences/consensus)
       api/
@@ -256,19 +277,48 @@ packages/
 
 ## Tests
 
-**39 test cases across 7 test files:**
+**71 test cases across 10 test files (100% passing):**
 
 | File | Cases | What it tests |
 |------|-------|---------------|
-| `consensus.test.ts` | 7 | MockConsensusEngine end-to-end pipeline |
-| `scoring.test.ts` | 7 | ScoringEngine dimension scoring + group score formula |
-| `conflict.test.ts` | 5 | ConflictAnalyzer — all 4 conflict rules |
-| `explanation.test.ts` | 5 | ExplanationGenerator — all sentence types + stddev bands |
-| `auth.test.ts` | 7 | hashPassword / verifyPassword / generateToken / verifyToken |
-| `preference.test.ts` | 5 | PreferenceService CRUD + JSON parsing |
-| `realtime.test.ts` | 2 | Socket.IO group:join + preference:update end-to-end |
+| `e2eJourney.test.ts` | 9 | Complete 20-step end-to-end user journey audit (create, join, live socket sync, consensus compute, role allocation, export) |
+| `scoring.test.ts` | 14 | ScoringEngine 5-dimension scoring, sub-score weights, variance penalty, clamping, tie-breakers |
+| `consensus.test.ts` | 9 | MockConsensusEngine deterministic pipeline, scoring integration, runner-up calculation |
+| `realtime.test.ts` | 8 | Socket.IO room events, leader authorization check, preference auto-save, multi-client broadcasts |
+| `auth.test.ts` | 7 | scrypt password hashing, JWT generation/verification, auth middleware |
+| `roleAllocation.test.ts` | 5 | Smart role allocator, skill coverage calculation, 100% fallback skill coverage logic |
+| `explanation.test.ts` | 5 | ExplanationGenerator natural language trade-off sentences, stddev spread bands, conflict rationale |
+| `conflict.test.ts` | 5 | ConflictAnalyzer — all 4 conflict rules (skill overlap, budget spread, interest divergence, availability gap) |
+| `preference.test.ts` | 5 | PreferenceService CRUD, JSON column parsing & persistence |
+| `uniqueProject.test.ts` | 4 | UniqueProjectSynthesizer bespoke project synthesis, roadmap, and custom team role specs |
 
 Run: `pnpm test`
+
+---
+
+## Key Advanced Features
+
+1. **Unique Project Synthesizer (`UniqueProjectSynthesizer.ts`)**
+   - Synthesizes bespoke project proposals tailored specifically to the unique intersection of member skills, interests, and constraints.
+   - Generates project architectures, milestone roadmaps, risk matrices, and customized role allocations.
+
+2. **Advanced Semantic Skill Matcher (`skillMatcher.ts`)**
+   - Alias dictionary and fuzzy skill canonicalization (e.g. JS/TypeScript, PyTorch/TensorFlow/ML, Docker/Kubernetes/DevOps, Figma/UI/UX, SQL/PostgreSQL, Solidity/Web3).
+   - Domain taxonomy mapping and role allocation skill coverage calculator ensuring 100% team skill coverage.
+
+3. **Greedy Role Allocator with Coverage Optimization**
+   - Matches candidate skill requirements against team member proficiencies.
+   - Computes individual match percentages, key deliverables, and fallback allocations for balanced workload distribution.
+
+4. **Leader Controls & Auto-Triggering**
+   - Role-based permissions preventing unauthorized consensus regeneration.
+   - Automatic calculation trigger when all group members submit preference profiles.
+
+5. **Cyber-Glass UI & Interactive Modals**
+   - `CandidateCatalogModal`: Live explorer for all 10 campus project archetypes.
+   - `AiThinkingTerminal`: Real-time pipeline step monitor displaying conflict analysis, candidate ranking, and role assignments.
+   - `LeaderboardModal`: Team alignment score comparisons.
+   - Full Markdown report export for presentations and submissions.
 
 ---
 
@@ -282,3 +332,4 @@ DB_PATH=packages/server/consensusai.sqlite
 JWT_SECRET=<generate with: node -e "require('crypto').randomBytes(48).toString('hex')">
 CONSENSUS_ENGINE=mock
 ```
+

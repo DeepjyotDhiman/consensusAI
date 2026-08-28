@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import { io as ioc } from 'socket.io-client';
 import { registerHandlers } from '../src/socket/handlers.js';
 import db from '../src/db/db.js';
+import { generateToken } from '../src/services/authService.js';
 
 const NOW = Date.now();
 
@@ -17,10 +18,11 @@ function seedTestData() {
     { id: 'user-bob',    display_name: 'Bob',    avatar_color: '#f59e0b' },
     { id: 'user-carol',  display_name: 'Carol',  avatar_color: '#10b981' },
     { id: 'user-david',  display_name: 'David',  avatar_color: '#3b82f6' },
+    { id: 'user-outsider', display_name: 'Outsider', avatar_color: '#999999' },
   ];
   for (const u of users) {
-    db.exec(`INSERT OR IGNORE INTO users (id, display_name, avatar_color, created_at)
-      VALUES ('${u.id}', '${u.display_name}', '${u.avatar_color}', ${NOW})`);
+    db.exec(`INSERT OR IGNORE INTO users (id, username, password_hash, display_name, avatar_color, created_at)
+      VALUES ('${u.id}', '${u.display_name.toLowerCase()}', 'dummyhash', '${u.display_name}', '${u.avatar_color}', ${NOW})`);
   }
 
   const members = [
@@ -70,6 +72,11 @@ describe('Socket.IO realtime flow', () => {
   let clientSocketB: ReturnType<typeof ioc>;
   let serverPort: number;
 
+  const tokenAlice = generateToken({ userId: 'user-alice', username: 'alice' });
+  const tokenBob = generateToken({ userId: 'user-bob', username: 'bob' });
+  const tokenDavid = generateToken({ userId: 'user-david', username: 'david' });
+  const tokenOutsider = generateToken({ userId: 'user-outsider', username: 'outsider' });
+
   beforeAll(
     () =>
       new Promise<void>((resolve) => {
@@ -78,10 +85,13 @@ describe('Socket.IO realtime flow', () => {
         httpServer = createServer();
         ioServer = new Server(httpServer);
         registerHandlers(ioServer);
-        httpServer.listen(0, () => {
+        httpServer.listen(0, '127.0.0.1', () => {
           const addr = httpServer.address() as { port: number };
           serverPort = addr.port;
-          clientSocketA = ioc(`http://localhost:${serverPort}`);
+          clientSocketA = ioc(`http://127.0.0.1:${serverPort}`, {
+            auth: { token: tokenAlice },
+            transports: ['websocket'],
+          });
           clientSocketA.on('connect', resolve);
         });
       }),
@@ -92,13 +102,43 @@ describe('Socket.IO realtime flow', () => {
     clientSocketA?.disconnect();
     clientSocketB?.disconnect();
     ioServer?.close();
+    httpServer?.close();
   });
 
-  it('rejects invalid or empty userId on group:join with error event', () =>
+  it('rejects unauthenticated socket connections with Authentication required error', () =>
+    new Promise<void>((resolve) => {
+      const unauthSocket = ioc(`http://127.0.0.1:${serverPort}`, {
+        transports: ['websocket'],
+      });
+      unauthSocket.on('connect_error', (err) => {
+        expect(err.message).toContain('Authentication required');
+        unauthSocket.disconnect();
+        resolve();
+      });
+    }));
+
+  it('rejects non-member from joining group room with error event', () =>
+    new Promise<void>((resolve) => {
+      const outsiderSocket = ioc(`http://127.0.0.1:${serverPort}`, {
+        auth: { token: tokenOutsider },
+        transports: ['websocket'],
+      });
+      outsiderSocket.on('connect', () => {
+        outsiderSocket.emit('group:join', {
+          groupId: 'group-hackathon-01',
+        });
+        outsiderSocket.once('error', (err) => {
+          expect(err.message).toContain('You are not a member of this group');
+          outsiderSocket.disconnect();
+          resolve();
+        });
+      });
+    }));
+
+  it('rejects invalid or empty groupId on group:join with error event', () =>
     new Promise<void>((resolve) => {
       clientSocketA.emit('group:join', {
-        groupId: 'group-hackathon-01',
-        userId: '',
+        groupId: '',
       });
       clientSocketA.once('error', (err) => {
         expect(err.message).toContain('Invalid join payload');
@@ -111,7 +151,6 @@ describe('Socket.IO realtime flow', () => {
       // 1. Client A joins the group
       clientSocketA.emit('group:join', {
         groupId: 'group-hackathon-01',
-        userId: 'user-alice',
       });
 
       clientSocketA.once('group:state', (stateA1) => {
@@ -119,7 +158,10 @@ describe('Socket.IO realtime flow', () => {
         expect(stateA1.members.some((m: any) => m.userId === 'user-alice')).toBe(true);
 
         // 2. Client B connects and joins the same group
-        clientSocketB = ioc(`http://localhost:${serverPort}`);
+        clientSocketB = ioc(`http://127.0.0.1:${serverPort}`, {
+          auth: { token: tokenBob },
+          transports: ['websocket'],
+        });
         clientSocketB.on('connect', () => {
           let clientAReceived = false;
           let clientBReceived = false;
@@ -151,52 +193,88 @@ describe('Socket.IO realtime flow', () => {
 
           clientSocketB.emit('group:join', {
             groupId: 'group-hackathon-01',
-            userId: 'user-bob',
           });
         });
       });
     }));
 
-  it('broadcasts preference:updated on preference:update auto-save', () =>
+  it('rejects preference:update when a member attempts to update another members preferences', () =>
     new Promise<void>((resolve) => {
-      clientSocketA.emit('group:join', {
-        groupId: 'group-hackathon-01',
-        userId: 'user-david',
+      // clientSocketA is authenticated as Alice; attempt to update Bob's preferences (member-bob)
+      clientSocketA.emit('preference:update', {
+        groupMemberId: 'member-bob',
+        preferences: {
+          skills: ['SQL'],
+          availabilityHours: 10,
+          budget: 200,
+          interests: ['AI'],
+          learningGoals: [],
+          priorities: [],
+        },
       });
-      clientSocketA.once('group:state', () => {
-        clientSocketA.emit('preference:update', {
-          groupMemberId: 'member-david',
-          preferences: {
-            id: 'pref-david',
-            groupMemberId: 'member-david',
-            skills: ['SQL', 'PostgreSQL'],
-            availabilityHours: 12,
-            budget: 300,
-            interests: ['Data', 'AI'],
-            learningGoals: ['Machine Learning'],
-            priorities: [],
-            notes: '',
-            updatedAt: Date.now(),
-          },
+      clientSocketA.once('error', (err) => {
+        expect(err.message).toContain('You can only update your own preferences');
+        resolve();
+      });
+    }));
+
+  it('broadcasts preference:updated on preference:update auto-save by the owner', () =>
+    new Promise<void>((resolve) => {
+      const socketDavid = ioc(`http://127.0.0.1:${serverPort}`, {
+        auth: { token: tokenDavid },
+        transports: ['websocket'],
+      });
+
+      socketDavid.on('connect', () => {
+        socketDavid.emit('group:join', {
+          groupId: 'group-hackathon-01',
         });
-        clientSocketA.once('preference:updated', (payload) => {
-          expect(payload.groupMemberId).toBe('member-david');
-          expect(payload.preferences.skills).toContain('SQL');
-          resolve();
+        socketDavid.once('group:state', () => {
+          socketDavid.emit('preference:update', {
+            groupMemberId: 'member-david',
+            preferences: {
+              id: 'pref-david',
+              groupMemberId: 'member-david',
+              skills: ['SQL', 'PostgreSQL'],
+              availabilityHours: 12,
+              budget: 300,
+              interests: ['Data', 'AI'],
+              learningGoals: ['Machine Learning'],
+              priorities: [],
+              notes: '',
+              updatedAt: Date.now(),
+            },
+          });
+          socketDavid.once('preference:updated', (payload) => {
+            expect(payload.groupMemberId).toBe('member-david');
+            expect(payload.preferences.skills).toContain('SQL');
+            socketDavid.disconnect();
+            resolve();
+          });
         });
       });
     }));
 
-  it('broadcasts consensus:updated when leader triggers consensus:generate', () =>
+  it('rejects consensus:generate from a non-leader member', () =>
+    new Promise<void>((resolve) => {
+      // clientSocketB is authenticated as Bob (member, not leader)
+      clientSocketB.emit('consensus:generate', {
+        groupId: 'group-hackathon-01',
+      });
+      clientSocketB.once('error', (err) => {
+        expect(err.message).toContain('Only the group leader can generate the consensus');
+        resolve();
+      });
+    }));
+
+  it('broadcasts consensus:updated when authorized leader triggers consensus:generate', () =>
     new Promise<void>((resolve) => {
       clientSocketA.emit('group:join', {
         groupId: 'group-hackathon-01',
-        userId: 'user-alice',
       });
       clientSocketA.once('group:state', () => {
         clientSocketA.emit('consensus:generate', {
           groupId: 'group-hackathon-01',
-          userId: 'user-alice',
         });
         clientSocketA.once('consensus:updated', (payload) => {
           expect(payload.result).toBeDefined();

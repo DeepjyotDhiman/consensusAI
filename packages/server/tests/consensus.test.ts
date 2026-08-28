@@ -58,7 +58,7 @@ const testMembers: ConsensusInput['members'] = [
 const engine = new MockConsensusEngine();
 
 describe('MockConsensusEngine', () => {
-  it('returns a valid ConsensusOutput for 3-member seed-like input', async () => {
+  it('returns a valid ConsensusOutput with skillCoverage for 3-member seed-like input', async () => {
     const output = await engine.generateConsensus({ members: testMembers });
     expect(output).toBeDefined();
     expect(typeof output.recommendation).toBe('string');
@@ -69,6 +69,9 @@ describe('MockConsensusEngine', () => {
     expect(Array.isArray(output.conflicts)).toBe(true);
     expect(typeof output.roleAllocation).toBe('object');
     expect(typeof output.memberScores).toBe('object');
+    expect(output.skillCoverage).toBeDefined();
+    expect(Array.isArray(output.skillCoverage?.coveredSkills)).toBe(true);
+    expect(typeof output.skillCoverage?.overallCoveragePercentage).toBe('number');
   });
 
   it('winner is deterministic across multiple runs', async () => {
@@ -105,5 +108,87 @@ describe('MockConsensusEngine', () => {
   it('runnerUp is different from recommendation', async () => {
     const output = await engine.generateConsensus({ members: testMembers });
     expect(output.runnerUp).not.toBe(output.recommendation);
+  });
+
+  it('recommends Security project for a team with cybersecurity profile', async () => {
+    const securityTeam: ConsensusInput['members'] = [
+      {
+        userId: 'sec-1',
+        displayName: 'SecLead',
+        preferences: {
+          id: 'p1',
+          groupMemberId: 'm1',
+          skills: ['Network Security', 'Cryptography', 'Linux'],
+          availabilityHours: 20,
+          budget: 200,
+          interests: ['Cybersecurity', 'Privacy'],
+          learningGoals: ['Zero-Knowledge'],
+          priorities: [],
+          notes: '',
+          updatedAt: NOW,
+        },
+      },
+      {
+        userId: 'sec-2',
+        displayName: 'SecDev',
+        preferences: {
+          id: 'p2',
+          groupMemberId: 'm2',
+          skills: ['Python', 'Network Security', 'Linux'],
+          availabilityHours: 15,
+          budget: 150,
+          interests: ['Cybersecurity', 'Systems'],
+          learningGoals: ['Cryptography'],
+          priorities: [],
+          notes: '',
+          updatedAt: NOW,
+        },
+      },
+    ];
+
+    const result = await engine.generateConsensus({ members: securityTeam });
+    expect(['SecureVault', 'ThreatSense']).toContain(result.recommendation);
+    expect(result.skillCoverage?.coveredSkills).toContain('Network Security');
+  });
+
+  it('recommends Design/Frontend project for a team with UI & React profile', async () => {
+    const designTeam: ConsensusInput['members'] = [
+      {
+        userId: 'des-1',
+        displayName: 'Designer',
+        preferences: {
+          id: 'pd1',
+          groupMemberId: 'md1',
+          skills: ['UI Design', 'CSS', 'Figma'],
+          availabilityHours: 20,
+          budget: 100,
+          interests: ['UI/UX', 'Design Systems'],
+          learningGoals: ['Design Tokens'],
+          priorities: [],
+          notes: '',
+          updatedAt: NOW,
+        },
+      },
+      {
+        userId: 'des-2',
+        displayName: 'FrontendDev',
+        preferences: {
+          id: 'pd2',
+          groupMemberId: 'md2',
+          skills: ['React', 'TypeScript', 'CSS'],
+          availabilityHours: 20,
+          budget: 100,
+          interests: ['Frontend', 'Design Systems'],
+          learningGoals: ['Tailwind'],
+          priorities: [],
+          notes: '',
+          updatedAt: NOW,
+        },
+      },
+    ];
+
+    const result = await engine.generateConsensus({ members: designTeam });
+    expect(['Community Design System', 'CollabSpace']).toContain(result.recommendation);
+    expect(result.skillCoverage?.coveredSkills).toContain('React');
   });
 });
