@@ -26,6 +26,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
     try {
+      const sessionUser = sessionStorage.getItem(USER_KEY);
+      if (sessionUser) return JSON.parse(sessionUser);
       const storedUser = localStorage.getItem(USER_KEY);
       return storedUser ? JSON.parse(storedUser) : null;
     } catch {
@@ -34,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem(TOKEN_KEY) || null;
+    return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || null;
   });
 
   const [loading, setLoading] = useState(true);
@@ -58,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const json = await res.json();
           const authUser = json.data.user;
           setUser(authUser);
+          sessionStorage.setItem(USER_KEY, JSON.stringify(authUser));
           localStorage.setItem(USER_KEY, JSON.stringify(authUser));
         } else {
           logout();
@@ -88,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { token: newToken, user: newUser } = json.data;
     setToken(newToken);
     setUser(newUser);
+    sessionStorage.setItem(TOKEN_KEY, newToken);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(newUser));
     localStorage.setItem(TOKEN_KEY, newToken);
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
   }
@@ -108,6 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { token: newToken, user: newUser } = json.data;
     setToken(newToken);
     setUser(newUser);
+    sessionStorage.setItem(TOKEN_KEY, newToken);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(newUser));
     localStorage.setItem(TOKEN_KEY, newToken);
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
   }
@@ -115,6 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     setToken(null);
     setUser(null);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   }

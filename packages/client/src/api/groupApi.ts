@@ -6,7 +6,7 @@ const BASE = '/api/v1';
 const TOKEN_KEY = 'consensus_auth_token';
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

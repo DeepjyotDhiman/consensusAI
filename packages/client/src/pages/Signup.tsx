@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 
 export default function Signup() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { register } = useAuth();
 
   const [displayName, setDisplayName] = useState('');
@@ -12,6 +13,8 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const destination = (location.state as any)?.from?.pathname || '/dashboard';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,7 +30,7 @@ export default function Signup() {
 
     try {
       await register(username.trim(), password, displayName.trim());
-      navigate('/dashboard');
+      navigate(destination, { replace: true });
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
